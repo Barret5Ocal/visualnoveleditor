@@ -66,7 +66,8 @@ ID3D11Buffer *IBuffer;                // the pointer to the index buffer
 // a struct to define a single vertex
 struct vertex
 {
-    FLOAT X, Y, Z; 
+    v3 Position;
+    //FLOAT X, Y, Z; 
     v3 Normal;
 };
 
@@ -106,6 +107,41 @@ MainWindowProc(HWND Window,
     return Result; //DefWindowProc(Window, Message, WParam, LParam);
 }
 
+// state objects
+ID3D11RasterizerState *pRSDefault;     // the default rasterizer state
+ID3D11RasterizerState *pRSWireframe;   // a rasterizer using wireframe
+ID3D11RasterizerState *pRS;
+// initializes the states
+void InitStates()
+{
+    D3D11_RASTERIZER_DESC rd;
+    rd.FillMode = D3D11_FILL_SOLID;
+    rd.CullMode = D3D11_CULL_BACK;
+    rd.FrontCounterClockwise = FALSE;
+    rd.DepthClipEnable = TRUE;
+    rd.ScissorEnable = FALSE;
+    rd.AntialiasedLineEnable = FALSE;
+    rd.MultisampleEnable = FALSE;
+    rd.DepthBias = 0;
+    rd.DepthBiasClamp = 0.0f;
+    rd.SlopeScaledDepthBias = 0.0f;
+    
+    Dev->CreateRasterizerState(&rd, &pRSDefault);
+    
+    // set the changed values for wireframe mode
+    rd.FillMode = D3D11_FILL_WIREFRAME;
+    rd.AntialiasedLineEnable = TRUE;
+    
+    Dev->CreateRasterizerState(&rd, &pRSWireframe);
+    
+    
+    rd.FillMode = D3D11_FILL_SOLID;
+    rd.CullMode = D3D11_CULL_BACK;
+    rd.FrontCounterClockwise = FALSE;
+    rd.DepthClipEnable = FALSE;    // turn off depth clipping
+    
+    Dev->CreateRasterizerState(&rd, &pRS);
+}
 
 int CALLBACK 
 WinMain(HINSTANCE Instance,
@@ -206,11 +242,11 @@ WinMain(HINSTANCE Instance,
             Devcon->VSSetShader(VS, 0, 0);
             Devcon->PSSetShader(PS, 0, 0);
             
-            // create the input layout object
+            // create the input element object
             D3D11_INPUT_ELEMENT_DESC ied[] =
             {
                 {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-                //{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+                //{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
                 {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
             };
             
@@ -230,41 +266,42 @@ WinMain(HINSTANCE Instance,
             // this creates the shape to render
             vertex OurVertices[] =
             {
-                {-1.0f, -1.0f, 1.0f, {0.0f, 0.0f, 1.0f}},    // side 1
-                {1.0f, -1.0f, 1.0f, {0.0f, 0.0f, 1.0f}},
-                {-1.0f, 1.0f, 1.0f, {0.0f, 0.0f, 1.0f}},
-                {1.0f, 1.0f, 1.0f, {0.0f, 0.0f, 1.0f}},
+                {{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},    // side 1
+                {{1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+                {{-1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+                {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
                 
-                {-1.0f, -1.0f, -1.0f, {0.0f, 0.0f, -1.0f}},    // side 2
-                {-1.0f, 1.0f, -1.0f, {0.0f, 0.0f, -1.0f}},
-                {1.0f, -1.0f, -1.0f, {0.0f, 0.0f, -1.0f}},
-                {1.0f, 1.0f, -1.0f, {0.0f, 0.0f, -1.0f}},
+                {{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}},    // side 2
+                {{-1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}},
+                {{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}},
+                {{1.0f, 1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}},
                 
-                {-1.0f, 1.0f, -1.0f, {0.0f, 1.0f, 0.0f}},    // side 3
-                {-1.0f, 1.0f, 1.0f, {0.0f, 1.0f, 0.0f}},
-                {1.0f, 1.0f, -1.0f, {0.0f, 1.0f, 0.0f}},
-                {1.0f, 1.0f, 1.0f, {0.0f, 1.0f, 0.0f}},
+                {{-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},    // side 3
+                {{-1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+                {{1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+                {{1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
                 
-                {-1.0f, -1.0f, -1.0f, {0.0f, -1.0f, 0.0f}},    // side 4
-                {1.0f, -1.0f, -1.0f, {0.0f, -1.0f, 0.0f}},
-                {-1.0f, -1.0f, 1.0f, {0.0f, -1.0f, 0.0f}},
-                {1.0f, -1.0f, 1.0f, {0.0f, -1.0f, 0.0f}},
+                {{-1.0f, -1.0f, -1.0f}, {0.0f, -1.0f, 0.0f}},    // side 4
+                {{1.0f, -1.0f, -1.0f}, {0.0f, -1.0f, 0.0f}},
+                {{-1.0f, -1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}},
+                {{1.0f, -1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}},
                 
-                {1.0f, -1.0f, -1.0f, {1.0f, 0.0f, 0.0f}},    // side 5
-                {1.0f, 1.0f, -1.0f, {1.0f, 0.0f, 0.0f}},
-                {1.0f, -1.0f, 1.0f, {1.0f, 0.0f, 0.0f}},
-                {1.0f, 1.0f, 1.0f, {1.0f, 0.0f, 0.0f}},
+                {{1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},    // side 5
+                {{1.0f, 1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},
+                {{1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}},
+                {{1.0f, 1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}},
                 
-                {-1.0f, -1.0f, -1.0f, {-1.0f, 0.0f, 0.0f}},    // side 6
-                {-1.0f, -1.0f, 1.0f, {-1.0f, 0.0f, 0.0f}},
-                {-1.0f, 1.0f, -1.0f, {-1.0f, 0.0f, 0.0f}},
-                {-1.0f, 1.0f, 1.0f, {-1.0f, 0.0f, 0.0f}},
+                {{-1.0f, -1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}},    // side 6
+                {{-1.0f, -1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}},
+                {{-1.0f, 1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}},
+                {{-1.0f, 1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}},
+                
             };
             
             D3D11_BUFFER_DESC VBD = {};
             
             VBD.Usage = D3D11_USAGE_DYNAMIC;
-            VBD.ByteWidth = sizeof(vertex) * 24; 
+            VBD.ByteWidth = sizeof(vertex) * ArrayCount(OurVertices); 
             VBD.BindFlags = D3D11_BIND_VERTEX_BUFFER;
             VBD.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; 
             
@@ -296,7 +333,7 @@ WinMain(HINSTANCE Instance,
             
             // create the index buffer
             IBD.Usage = D3D11_USAGE_DYNAMIC;
-            IBD.ByteWidth = sizeof(DWORD) * 36;
+            IBD.ByteWidth = sizeof(DWORD) * ArrayCount(OurIndices);
             IBD.BindFlags = D3D11_BIND_INDEX_BUFFER;
             IBD.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
             IBD.MiscFlags = 0;
@@ -306,6 +343,8 @@ WinMain(HINSTANCE Instance,
             Devcon->Map(IBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &MS);    // map the buffer
             memcpy(MS.pData, OurIndices, sizeof(OurIndices));                   // copy the data
             Devcon->Unmap(IBuffer, NULL);
+            
+            InitStates();
             
             time_info TimeInfo = {};
             while(RunLoop(&TimeInfo, Running, 60))
@@ -329,17 +368,20 @@ WinMain(HINSTANCE Instance,
                 gb_mat4_identity(&MatProjection);
                 gb_mat4_identity(&MatRotate);
                 
-                static float Time = 0.0f; Time += 0.5f; 
+                static float Time = 52.8494797; //Time += 0.05f; 
                 
-                gb_mat4_rotate(&MatRotate, {0.0f, 1.0f, 0.0f}, gb_to_radians(Time));
+                gb_mat4_rotate(&MatRotate, {0.0f, 1.0f, 0.0f}, Time);
                 
                 gb_mat4_perspective(&MatProjection, gb_to_radians(90.0f), (float)Width/(float)Height, 0.1f, 100.0f);
                 
-                gb_mat4_look_at(&MatView, {0.0f, 3.0f, 5.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
+                gb_mat4_look_at(&MatView, {0.0f, 3.0f, -5.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
                 
                 // NOTE(Barret5Ocal): REMEMBER THAT THE MATRIX MULTIPLY ORDER MATTERS
                 Cbuffer.Final  = MatProjection * MatView * MatRotate; 
                 Cbuffer.Rotation = MatRotate;
+                
+                //Devcon->RSSetState(pRSWireframe);
+                Devcon->RSSetState(pRS);
                 
                 float Color[] = {0.0f, 0.2f, 0.4f, 1.0f};
                 Devcon->ClearRenderTargetView(Backbuffer, Color);

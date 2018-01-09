@@ -1,7 +1,7 @@
 cbuffer ConstantBuffer
 {
-    float4x4 matFinal;
-	float4x4 rotation;    // the rotation matrix
+    float4x4 final;
+    float4x4 rotation;    // the rotation matrix
     float4 lightvec;      // the light's vector
     float4 lightcol;      // the light's color
     float4 ambientcol;    // the ambient light's color
@@ -17,9 +17,9 @@ VOut VShader(float4 position : POSITION, float4 normal : NORMAL)
 {
     VOut output;
 
-    output.position = mul(matFinal, position);   
+    output.position = mul(final, position);
 
- // set the ambient light
+    // set the ambient light
     output.color = ambientcol;
 
     // calculate the diffuse light and add it to the ambient light
@@ -30,8 +30,7 @@ VOut VShader(float4 position : POSITION, float4 normal : NORMAL)
     return output;
 }
 
-
-float4 PShader(float4 position : SV_POSITION, float4 color : COLOR) : SV_TARGET
+float4 PShader(float4 position : POSITION, float4 color : COLOR) : SV_TARGET
 {
     return color;
 }
