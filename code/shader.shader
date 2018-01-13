@@ -1,3 +1,8 @@
+cbuffer ConstantBuffer
+{
+    float4x4 final;
+}
+
 struct VOut
 {
     float4 position : SV_POSITION;
@@ -12,7 +17,7 @@ VOut VShader(float4 position : POSITION, float4 color : COLOR, float2 texcoord :
 {
     VOut output;
 
-    output.position = position;
+    output.position = mul(final, position);
     output.color = color;
 
 	output.texcoord = texcoord;    // set the texture coordinates, unmodified

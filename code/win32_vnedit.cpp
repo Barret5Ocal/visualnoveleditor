@@ -128,7 +128,8 @@ struct vertex
 void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
                   ID3D11VertexShader **VS,
                   ID3D11PixelShader **PS,
-                  ID3D11InputLayout **Layout  )
+                  ID3D11InputLayout **Layout,
+                  ID3D11Buffer **CBuffer)
 {
     // NOTE(Barret5Ocal): Init Pipeline
     if(S_OK != Dev->CreateVertexShader(g_VShader, sizeof(g_VShader), 0, VS))
@@ -151,6 +152,15 @@ void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
     // NOTE(Barret5Ocal): make sure to update this function when you change the ied
     Dev->CreateInputLayout(ied, 3, g_VShader, sizeof(g_VShader), Layout);
     Devcon->IASetInputLayout(Layout[0]);
+    
+    D3D11_BUFFER_DESC BD = {};
+    
+    BD.Usage = D3D11_USAGE_DEFAULT; 
+    BD.ByteWidth = 64;
+    BD.BindFlags = D3D11_BIND_CONSTANT_BUFFER; 
+    
+    Dev->CreateBuffer(&BD, 0, CBuffer);
+    Devcon->VSSetConstantBuffers(0, 1, CBuffer);
 }
 
 void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer **VBuffer, ID3D11Buffer **IBuffer, ID3D11ShaderResourceView **Texture)
@@ -208,6 +218,7 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
     
     
     // NOTE(Barret5Ocal): Texture Stuff
+    // TODO(Barret5Ocal): Look into more Texture stuff 
     int x,y,n;
     unsigned char *data = stbi_load("Wood.png", &x, &y, &n, 4);
     
@@ -244,6 +255,11 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
 }
 
 
+
+struct cbuffer
+{
+    m4 Final;
+};
 
 int CALLBACK 
 WinMain(HINSTANCE Instance,
@@ -289,12 +305,14 @@ WinMain(HINSTANCE Instance,
             
             ID3D11VertexShader *VS;
             ID3D11PixelShader *PS;
+            ID3D11Buffer *CBuffer; // the pointer to the constant buffer
             
             ID3D11InputLayout *Layout;  
             InitPipeline( Dev, Devcon,
                          &VS,
                          &PS,
-                         &Layout);
+                         &Layout, 
+                         &CBuffer);
             
             ID3D11Buffer *VBuffer;
             ID3D11Buffer *IBuffer;
@@ -312,6 +330,24 @@ WinMain(HINSTANCE Instance,
                     DispatchMessage(&Message);
                 }
                 
+                cbuffer ConstantB = {};
+                
+                m4 MatRotate, MatView, MatProjection, MatFinal;
+                gb_mat4_identity(&MatFinal);
+                gb_mat4_identity(&MatView);
+                gb_mat4_identity(&MatProjection);
+                gb_mat4_identity(&MatRotate);
+                
+                static float Time = 0.0f; Time += 0.05f; 
+                
+                gb_mat4_rotate(&MatRotate, {0.0f, 1.0f, 0.0f}, Time);
+                
+                gb_mat4_perspective(&MatProjection, gb_to_radians(90.0f), (float)Width/(float)Height, 0.1f, 100.0f);
+                
+                gb_mat4_look_at(&MatView, {0.0f, 1.0f, -2.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
+                ConstantB.Final  = MatProjection * MatView * MatRotate; 
+                
+                
                 float Color[] = {0.0f, 0.2f, 0.4f, 1.0f};
                 Devcon->ClearRenderTargetView(Backbuffer, Color);
                 
@@ -323,6 +359,8 @@ WinMain(HINSTANCE Instance,
                 Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
                 
                 Devcon->PSSetShaderResources(0, 1, &Texture);
+                Devcon->UpdateSubresource(CBuffer, 0, 0, &ConstantB, 0, 0);
+                
                 Devcon->DrawIndexed(6, 0, 0);
                 
                 Swapchain->Present(0, 0);
