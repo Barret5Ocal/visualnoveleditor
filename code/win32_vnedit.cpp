@@ -122,6 +122,7 @@ struct vertex
 {
     v3 Position;
     v4 Color; 
+    v2 UV; 
 };
 
 void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
@@ -143,23 +144,35 @@ void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
     D3D11_INPUT_ELEMENT_DESC ied[] =
     {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
     
-    Dev->CreateInputLayout(ied, 2, g_VShader, sizeof(g_VShader), Layout);
+    // NOTE(Barret5Ocal): make sure to update this function when you change the ied
+    Dev->CreateInputLayout(ied, 3, g_VShader, sizeof(g_VShader), Layout);
     Devcon->IASetInputLayout(Layout[0]);
 }
 
-void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer **VBuffer, ID3D11Buffer **IBuffer)
+void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer **VBuffer, ID3D11Buffer **IBuffer, ID3D11ShaderResourceView **Texture)
 {
-    
+#if 1
     vertex Vertices[]
     {
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
-        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}},
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}, // Top Left
+        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 1.0f}}, // Bottom Right 
+        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}, // Bottom Left 
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}}, // Top Right 
     };
+    
+#else 
+    vertex Vertices[]
+    {
+        {{-0.5f, 0.5f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},// Top Left
+        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}}, // Bottom Right 
+        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}},  // Bottom Left 
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}}, // Top Right 
+    };
+#endif 
     
     D3D11_BUFFER_DESC BD = {};
     BD.Usage = D3D11_USAGE_DYNAMIC;
@@ -192,6 +205,42 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
     Devcon->Map(IBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
     memcpy(MS.pData, Indices, sizeof(Indices));
     Devcon->Unmap(IBuffer[0], 0);
+    
+    
+    // NOTE(Barret5Ocal): Texture Stuff
+    int x,y,n;
+    unsigned char *data = stbi_load("Wood.png", &x, &y, &n, 4);
+    
+    
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = x;
+    desc.Height = y;
+    desc.MipLevels = desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT; //D3D11_USAGE_DYNAMIC; 
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    desc.CPUAccessFlags = 0; //D3D11_CPU_ACCESS_WRITE;
+    desc.MiscFlags = 0;
+    
+    D3D11_SUBRESOURCE_DATA  SubData = {}; 
+    SubData.pSysMem = data; 
+    SubData.SysMemPitch = x * 4;
+    SubData.SysMemSlicePitch = 4 * x * y; 
+    
+    ID3D11Texture2D *pTexture = NULL;
+    HRESULT Result = Dev->CreateTexture2D( &desc, &SubData, &pTexture );
+    if(Result != S_OK)
+        InvalidCodePath;
+    Result = Dev->CreateShaderResourceView(pTexture, 0, Texture);
+    if(Result != S_OK)
+        InvalidCodePath;
+#if 0
+    Devcon->Map(pTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
+    memcpy(MS.pData, data, n * x * y);
+    Devcon->Unmap(pTexture, 0);
+#endif 
+    // NOTE(Barret5Ocal): End Texture Stuff
 }
 
 
@@ -249,7 +298,9 @@ WinMain(HINSTANCE Instance,
             
             ID3D11Buffer *VBuffer;
             ID3D11Buffer *IBuffer;
-            InitGraphics(Dev, Devcon, &VBuffer, &IBuffer);
+            ID3D11ShaderResourceView *Texture;    // the pointer to the texture
+            
+            InitGraphics(Dev, Devcon, &VBuffer, &IBuffer, &Texture);
             
             time_info TimeInfo = {};
             while(RunLoop(&TimeInfo, Running, 60))
@@ -271,6 +322,7 @@ WinMain(HINSTANCE Instance,
                 
                 Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
                 
+                Devcon->PSSetShaderResources(0, 1, &Texture);
                 Devcon->DrawIndexed(6, 0, 0);
                 
                 Swapchain->Present(0, 0);
