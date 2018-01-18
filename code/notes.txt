@@ -1,0 +1,5 @@
+- Renderer Structure
+	- what does it need to do
+		- 2D
+		- 3D
+
