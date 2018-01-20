@@ -1,4 +1,15 @@
 - Renderer Structure
+	- All the things that the render buffer needs to take as input
+		- Sprites
+		- Models
+		- basic shapes 
+		- Screen Clear
+		- Animations (no idea how to do this. do more research)
+		- 
+	- What needs to be set up before rendering frame 
+		- camera location and direction
+		- projection type (perspective/orthographic)  
+		- 
 	- what does it need to do
 		- 2D
 		- 3D

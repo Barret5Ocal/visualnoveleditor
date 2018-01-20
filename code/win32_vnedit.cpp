@@ -105,37 +105,19 @@ WinMain(HINSTANCE Instance,
         if(Window)
         {
             
-            IDXGISwapChain *Swapchain;             // the pointer to the swap chain interface
-            ID3D11Device *Dev;                     // the pointer to our Direct3D device interface
-            ID3D11DeviceContext *Devcon;           // the pointer to our Direct3D device context
-            ID3D11RenderTargetView *Backbuffer;    // the pointer to our back buffer
+            directx11_state D11State = {};
             
-            ID3D11DepthStencilView *ZBuffer;       // the pointer to our depth buffer
-            
-            InitializeD3D(&Swapchain, &Dev, &Devcon, &Backbuffer, &ZBuffer, 
+            InitializeD3D(&D11State.Swapchain, &D11State.Dev, &D11State.Devcon, &D11State.Backbuffer, &D11State.ZBuffer, 
                           Width, Height, Window);
             
-            ID3D11VertexShader *VS;
-            ID3D11PixelShader *PS;
-            ID3D11Buffer *CBuffer; // the pointer to the constant buffer
+            InitPipeline( D11State.Dev, D11State.Devcon,
+                         &D11State.VS,
+                         &D11State.PS,
+                         &D11State.Layout, 
+                         &D11State.CBuffer);
             
-            ID3D11InputLayout *Layout;  
-            InitPipeline( Dev, Devcon,
-                         &VS,
-                         &PS,
-                         &Layout, 
-                         &CBuffer);
-            
-            ID3D11Buffer *VBuffer;
-            ID3D11Buffer *IBuffer;
-            ID3D11ShaderResourceView *Texture;    // the pointer to the texture
-            
-            InitGraphics(Dev, Devcon, &VBuffer, &IBuffer, &Texture);
-            
-            ID3D11RasterizerState *RSDefault;   
-            ID3D11RasterizerState *RSWireframe; 
-            ID3D11BlendState *BS;
-            InitStates(Dev, &RSDefault, &RSWireframe, &BS);
+            InitGraphics(D11State.Dev, D11State.Devcon, &D11State.VBuffer, &D11State.IBuffer, &D11State.Texture);
+            InitStates(D11State.Dev, &D11State.RSDefault, &D11State.RSWireframe, &D11State.BS);
             
             time_info TimeInfo = {};
             while(RunLoop(&TimeInfo, Running, 60))
@@ -147,49 +129,10 @@ WinMain(HINSTANCE Instance,
                     DispatchMessage(&Message);
                 }
                 
-                cbuffer ConstantB = {};
-                
-                m4 MatRotate, MatView, MatProjection, MatFinal;
-                gb_mat4_identity(&MatFinal);
-                gb_mat4_identity(&MatView);
-                gb_mat4_identity(&MatProjection);
-                gb_mat4_identity(&MatRotate);
-                
-                static float Time = 0.0f; Time += 0.05f; 
-                
-                gb_mat4_rotate(&MatRotate, {0.0f, 1.0f, 0.0f}, Time);
-                
-                gb_mat4_perspective(&MatProjection, gb_to_radians(90.0f), (float)Width/(float)Height, 0.1f, 100.0f);
-                
-                gb_mat4_look_at(&MatView, {0.0f, 0.0f, -2.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
-                ConstantB.Final  = MatProjection * MatView * MatRotate; 
-                
-                //Devcon->RSSetState(RSWireframe);
-                Devcon->RSSetState(RSDefault);
-                Devcon->OMSetBlendState(BS, 0, 0xffffffff);
-                
-                float Color[] = {0.0f, 0.2f, 0.4f, 1.0f};
-                Devcon->ClearRenderTargetView(Backbuffer, Color);
-                
-                // clear the depth buffer
-                Devcon->ClearDepthStencilView(ZBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
-                
-                UINT Stride = sizeof(vertex);
-                UINT Offset = 0;
-                Devcon->IASetVertexBuffers(0, 1, &VBuffer, &Stride, &Offset);
-                Devcon->IASetIndexBuffer(IBuffer, DXGI_FORMAT_R32_UINT, 0);
-                
-                Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-                
-                Devcon->PSSetShaderResources(0, 1, &Texture);
-                Devcon->UpdateSubresource(CBuffer, 0, 0, &ConstantB, 0, 0);
-                
-                Devcon->DrawIndexed(6, 0, 0);
-                
-                Swapchain->Present(0, 0);
+                RenderFrame(Width, Height, &D11State);
             }
             
-            Swapchain->SetFullscreenState(FALSE, NULL);
+            D11State.Swapchain->SetFullscreenState(FALSE, NULL);
         }
     }
     

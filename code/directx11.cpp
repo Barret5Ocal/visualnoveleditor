@@ -238,4 +238,73 @@ struct cbuffer
     m4 Final;
 };
 
+struct directx11_state
+{
+    IDXGISwapChain *Swapchain;             // the pointer to the swap chain interface
+    ID3D11Device *Dev;                     // the pointer to our Direct3D device interface
+    ID3D11DeviceContext *Devcon;           // the pointer to our Direct3D device context
+    ID3D11RenderTargetView *Backbuffer;    // the pointer to our back buffer
+    
+    ID3D11DepthStencilView *ZBuffer;       // the pointer to our depth buffer
+    
+    ID3D11VertexShader *VS;
+    ID3D11PixelShader *PS;
+    ID3D11Buffer *CBuffer; // the pointer to the constant buffer
+    
+    ID3D11InputLayout *Layout;
+    
+    ID3D11Buffer *VBuffer;
+    ID3D11Buffer *IBuffer;
+    ID3D11ShaderResourceView *Texture;    // the pointer to the texture
+    
+    ID3D11RasterizerState *RSDefault;   
+    ID3D11RasterizerState *RSWireframe; 
+    ID3D11BlendState *BS;
+    
+};
 
+void RenderFrame(int Width, int Height, directx11_state *D11State)
+{
+    
+    cbuffer ConstantB = {};
+    
+    m4 MatRotate, MatView, MatProjection, MatFinal;
+    gb_mat4_identity(&MatFinal);
+    gb_mat4_identity(&MatView);
+    gb_mat4_identity(&MatProjection);
+    gb_mat4_identity(&MatRotate);
+    
+    static float Time = 0.0f; Time += 0.05f; 
+    
+    gb_mat4_rotate(&MatRotate, {0.0f, 1.0f, 0.0f}, Time);
+    
+    gb_mat4_perspective(&MatProjection, gb_to_radians(90.0f), (float)Width/(float)Height, 0.1f, 100.0f);
+    
+    gb_mat4_look_at(&MatView, {0.0f, 0.0f, -2.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
+    ConstantB.Final  = MatProjection * MatView * MatRotate; 
+    
+    //Devcon->RSSetState(RSWireframe);
+    D11State->Devcon->RSSetState(D11State->RSDefault);
+    D11State->Devcon->OMSetBlendState(D11State->BS, 0, 0xffffffff);
+    
+    float Color[] = {0.0f, 0.2f, 0.4f, 1.0f};
+    D11State->Devcon->ClearRenderTargetView(D11State->Backbuffer, Color);
+    
+    // clear the depth buffer
+    D11State->Devcon->ClearDepthStencilView(D11State->ZBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    
+    UINT Stride = sizeof(vertex);
+    UINT Offset = 0;
+    D11State->Devcon->IASetVertexBuffers(0, 1, &D11State->VBuffer, &Stride, &Offset);
+    D11State->Devcon->IASetIndexBuffer(D11State->IBuffer, DXGI_FORMAT_R32_UINT, 0);
+    
+    D11State->Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    
+    D11State->Devcon->PSSetShaderResources(0, 1, &D11State->Texture);
+    D11State->Devcon->UpdateSubresource(D11State->CBuffer, 0, 0, &ConstantB, 0, 0);
+    
+    D11State->Devcon->DrawIndexed(6, 0, 0);
+    
+    D11State->Swapchain->Present(0, 0);
+    
+}
