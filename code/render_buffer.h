@@ -35,12 +35,47 @@ struct render_entry_sprite
     quaternion Rotation;
     float Scale;
     
+    texture_asset Texture; 
+};
+
+
+struct render_entry_model
+{
+    v3 Position;
+    quaternion Rotation;
+    float Scale;
     
+    model_asset *Model; 
+};
+
+enum shape_type
+{
+    SQUARE,
+    CIRCLE,
+    TRIANGLE,
+    CUBE,
+    SPHERE,
+    CONE,
+};
+
+struct render_entry_shape
+{
+    v3 Position;
+    quaternion Rotation;
+    float Scale;
+    
+    shape_type Shape; 
+};
+
+struct render_entry_clear
+{
+    v4 Color; 
 };
 
 struct render_buffer
 {
-    void *BufferMemory;
+    int Count;
+    memory_arena *Memory;
     buffer_startup Startup;
 };
 

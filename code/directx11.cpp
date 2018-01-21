@@ -67,13 +67,6 @@ void InitializeD3D(IDXGISwapChain **Swapchain,             // the pointer to the
     
 }
 
-struct vertex
-{
-    v3 Position;
-    v4 Color; 
-    v2 UV; 
-};
-
 void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
                   ID3D11VertexShader **VS,
                   ID3D11PixelShader **PS,

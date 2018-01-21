@@ -42,7 +42,11 @@ typedef double real64;
 #define Gigabyte(Value) 1024 * Megabyte(Value)
 #define Terabyte(Value) 1024 * Gigabyte(Value)
 
+#include "assets.h"
+
 #include "directx11.cpp"
+#include "memory.cpp"
+#include "render_buffer.cpp"
 
 LRESULT CALLBACK
 MainWindowProc(HWND Window,
