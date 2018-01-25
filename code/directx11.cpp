@@ -4,6 +4,36 @@
 #include "pshader.h"
 
 
+struct cbuffer
+{
+    m4 Final;
+};
+
+struct directx11_state
+{
+    IDXGISwapChain *Swapchain;             // the pointer to the swap chain interface
+    ID3D11Device *Dev;                     // the pointer to our Direct3D device interface
+    ID3D11DeviceContext *Devcon;           // the pointer to our Direct3D device context
+    ID3D11RenderTargetView *Backbuffer;    // the pointer to our back buffer
+    
+    ID3D11DepthStencilView *ZBuffer;       // the pointer to our depth buffer
+    
+    ID3D11VertexShader *VS;
+    ID3D11PixelShader *PS;
+    ID3D11Buffer *CBuffer; // the pointer to the constant buffer
+    
+    ID3D11InputLayout *Layout;
+    
+    ID3D11Buffer *VBuffer;
+    ID3D11Buffer *IBuffer;
+    ID3D11ShaderResourceView *Texture;    // the pointer to the texture
+    
+    ID3D11RasterizerState *RSDefault;   
+    ID3D11RasterizerState *RSWireframe; 
+    ID3D11BlendState *BS;
+    
+};
+
 void InitializeD3D(IDXGISwapChain **Swapchain,             // the pointer to the swap chain interface
                    ID3D11Device **Dev,                     // the pointer to our Direct3D device interface
                    ID3D11DeviceContext **Devcon,           // the pointer to our Direct3D device context
@@ -83,12 +113,11 @@ void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
     Devcon->VSSetShader(VS[0], 0, 0);
     Devcon->PSSetShader(PS[0], 0, 0);
     
-    // create the input element object
     D3D11_INPUT_ELEMENT_DESC ied[] =
     {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
     
     // NOTE(Barret5Ocal): make sure to update this function when you change the ied
@@ -105,37 +134,24 @@ void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
     Devcon->VSSetConstantBuffers(0, 1, CBuffer);
 }
 
-void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer **VBuffer, ID3D11Buffer **IBuffer, ID3D11ShaderResourceView **Texture)
+void D11LoadVertices(directx11_state *State, vertex *Vertices, int Count)
 {
-    
-    vertex Vertices[]
-    {
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f}}, // Top Left
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}, // Bottom Right 
-        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}}, // Bottom Left 
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // Top Right 
-        
-    };
-    
     D3D11_BUFFER_DESC BD = {};
     BD.Usage = D3D11_USAGE_DYNAMIC;
     BD.ByteWidth = sizeof(vertex) * ArrayCount(Vertices);
     BD.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     BD.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     
-    Dev->CreateBuffer(&BD, 0, VBuffer);
+    State->Dev->CreateBuffer(&BD, 0, &State->VBuffer);
     
     D3D11_MAPPED_SUBRESOURCE MS; 
-    Devcon->Map(VBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
-    memcpy(MS.pData, Vertices, sizeof(Vertices));
-    Devcon->Unmap(VBuffer[0], 0);
-    
-    DWORD Indices[] = 
-    {
-        0, 1, 2, 
-        0, 3, 1,
-        
-    };
+    State->Devcon->Map(State->VBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
+    memcpy(MS.pData, Vertices, sizeof(vertex) * Count);
+    State->Devcon->Unmap(State->VBuffer, 0);
+}
+
+void D11LoadIndices(directx11_state *State, DWORD *Indices, int Count)
+{
     
     D3D11_BUFFER_DESC IBD = {};
     IBD.Usage = D3D11_USAGE_DYNAMIC;
@@ -144,21 +160,20 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
     IBD. CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     IBD.MiscFlags = 0;
     
-    Dev->CreateBuffer(&IBD, 0, IBuffer);
+    State->Dev->CreateBuffer(&IBD, 0, &State->IBuffer);
     
-    Devcon->Map(IBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
-    memcpy(MS.pData, Indices, sizeof(Indices));
-    Devcon->Unmap(IBuffer[0], 0);
-    
-    
-    // NOTE(Barret5Ocal): Texture Stuff
+    D3D11_MAPPED_SUBRESOURCE MS; 
+    State->Devcon->Map(State->IBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);memcpy(MS.pData, Indices, sizeof(Indices));
+    State->Devcon->Unmap(State->IBuffer, 0);
+}
+
+void D11LoadTexture(directx11_state *State, void *Memory, int Width, int Height)
+{
     // TODO(Barret5Ocal): Look into more Texture stuff 
-    int x,y,n;
-    unsigned char *data = stbi_load("Wood.png", &x, &y, &n, 4);
     
     D3D11_TEXTURE2D_DESC desc = {};
-    desc.Width = x;
-    desc.Height = y;
+    desc.Width = Width;
+    desc.Height = Height;
     desc.MipLevels = desc.ArraySize = 1;
     desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.SampleDesc.Count = 1;
@@ -168,23 +183,18 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
     desc.MiscFlags = 0;
     
     D3D11_SUBRESOURCE_DATA  SubData = {}; 
-    SubData.pSysMem = data; 
-    SubData.SysMemPitch = x * 4;
-    SubData.SysMemSlicePitch = 4 * x * y; 
+    SubData.pSysMem = Memory; 
+    SubData.SysMemPitch = Width * 4;
+    SubData.SysMemSlicePitch = 4 * Width * Height; 
     
     ID3D11Texture2D *pTexture = NULL;
-    HRESULT Result = Dev->CreateTexture2D( &desc, &SubData, &pTexture );
+    HRESULT Result = State->Dev->CreateTexture2D( &desc, &SubData, &pTexture );
     if(Result != S_OK)
         InvalidCodePath;
-    Result = Dev->CreateShaderResourceView(pTexture, 0, Texture);
+    Result = State->Dev->CreateShaderResourceView(pTexture, 0, &State->Texture);
     if(Result != S_OK)
         InvalidCodePath;
-#if 0
-    Devcon->Map(pTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
-    memcpy(MS.pData, data, n * x * y);
-    Devcon->Unmap(pTexture, 0);
-#endif 
-    // NOTE(Barret5Ocal): End Texture Stuff
+    
 }
 
 // initializes the states
@@ -226,54 +236,46 @@ void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,
     Dev->CreateBlendState(&BD, BS);
 }
 
-struct cbuffer
+void D11DrawIndexed(directx11_state *D11State, m4 *MatFinal)
 {
-    m4 Final;
-};
+    cbuffer ConstantB = {};
+    
+    ConstantB.Final  = *MatFinal;
+    
+    
+    D11State->Devcon->ClearDepthStencilView(D11State->ZBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    
+    UINT Stride = sizeof(vertex);
+    UINT Offset = 0;
+    D11State->Devcon->IASetVertexBuffers(0, 1, &D11State->VBuffer, &Stride, &Offset);
+    D11State->Devcon->IASetIndexBuffer(D11State->IBuffer, DXGI_FORMAT_R32_UINT, 0);
+    
+    D11State->Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    
+    D11State->Devcon->PSSetShaderResources(0, 1, &D11State->Texture);
+    D11State->Devcon->UpdateSubresource(D11State->CBuffer, 0, 0, &ConstantB, 0, 0);
+    
+    D11State->Devcon->DrawIndexed(6, 0, 0);
+    
+}
 
-struct directx11_state
+void D11Clear(directx11_state *D11State, float Color[4])
 {
-    IDXGISwapChain *Swapchain;             // the pointer to the swap chain interface
-    ID3D11Device *Dev;                     // the pointer to our Direct3D device interface
-    ID3D11DeviceContext *Devcon;           // the pointer to our Direct3D device context
-    ID3D11RenderTargetView *Backbuffer;    // the pointer to our back buffer
-    
-    ID3D11DepthStencilView *ZBuffer;       // the pointer to our depth buffer
-    
-    ID3D11VertexShader *VS;
-    ID3D11PixelShader *PS;
-    ID3D11Buffer *CBuffer; // the pointer to the constant buffer
-    
-    ID3D11InputLayout *Layout;
-    
-    ID3D11Buffer *VBuffer;
-    ID3D11Buffer *IBuffer;
-    ID3D11ShaderResourceView *Texture;    // the pointer to the texture
-    
-    ID3D11RasterizerState *RSDefault;   
-    ID3D11RasterizerState *RSWireframe; 
-    ID3D11BlendState *BS;
-    
-};
+    D11State->Devcon->ClearRenderTargetView(D11State->Backbuffer, Color);
+}
 
+void D11PresentFrame(directx11_state *D11State)
+{
+    D11State->Swapchain->Present(0, 0);
+    
+}
+
+#if 0
 void RenderFrame(int Width, int Height, directx11_state *D11State)
 {
     
     cbuffer ConstantB = {};
     
-    m4 MatRotate, MatView, MatProjection, MatFinal;
-    gb_mat4_identity(&MatFinal);
-    gb_mat4_identity(&MatView);
-    gb_mat4_identity(&MatProjection);
-    gb_mat4_identity(&MatRotate);
-    
-    static float Time = 0.0f; Time += 0.05f; 
-    
-    gb_mat4_rotate(&MatRotate, {0.0f, 1.0f, 0.0f}, Time);
-    
-    gb_mat4_perspective(&MatProjection, gb_to_radians(90.0f), (float)Width/(float)Height, 0.1f, 100.0f);
-    
-    gb_mat4_look_at(&MatView, {0.0f, 0.0f, -2.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
     ConstantB.Final  = MatProjection * MatView * MatRotate; 
     
     //Devcon->RSSetState(RSWireframe);
@@ -298,6 +300,6 @@ void RenderFrame(int Width, int Height, directx11_state *D11State)
     
     D11State->Devcon->DrawIndexed(6, 0, 0);
     
-    D11State->Swapchain->Present(0, 0);
     
 }
+#endif 

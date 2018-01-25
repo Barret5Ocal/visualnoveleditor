@@ -42,10 +42,11 @@ typedef double real64;
 #define Gigabyte(Value) 1024 * Megabyte(Value)
 #define Terabyte(Value) 1024 * Gigabyte(Value)
 
-#include "assets.h"
 
-#include "directx11.cpp"
+
 #include "memory.cpp"
+#include "assets.h"
+#include "directx11.cpp"
 #include "render_buffer.cpp"
 
 LRESULT CALLBACK
@@ -109,19 +110,21 @@ WinMain(HINSTANCE Instance,
         if(Window)
         {
             
-            directx11_state D11State = {};
+            //Setup here 
+            memory_arena MainMemory = {};
+            InitMemoryArena(&MainMemory, Gigabyte(2));
             
-            InitializeD3D(&D11State.Swapchain, &D11State.Dev, &D11State.Devcon, &D11State.Backbuffer, &D11State.ZBuffer, 
-                          Width, Height, Window);
+            memory_arena RenderBufferMemory = {};
+            PushArena(&MainMemory, Megabyte(256));
             
-            InitPipeline( D11State.Dev, D11State.Devcon,
-                         &D11State.VS,
-                         &D11State.PS,
-                         &D11State.Layout, 
-                         &D11State.CBuffer);
+            render_buffer RenderBuffer = {};
+            RenderBuffer.Memory = &RenderBufferMemory; 
             
-            InitGraphics(D11State.Dev, D11State.Devcon, &D11State.VBuffer, &D11State.IBuffer, &D11State.Texture);
-            InitStates(D11State.Dev, &D11State.RSDefault, &D11State.RSWireframe, &D11State.BS);
+            texture_asset Texture = {};
+            LoadTexture(&Texture, &MainMemory, "Wood.png");
+            
+            render_state RenderState = {};
+            InitRenderer(&RenderState, Width, Height, Window);
             
             time_info TimeInfo = {};
             while(RunLoop(&TimeInfo, Running, 60))
@@ -133,13 +136,20 @@ WinMain(HINSTANCE Instance,
                     DispatchMessage(&Message);
                 }
                 
-                RenderFrame(Width, Height, &D11State);
+                static float Time = 0.0f; Time += 0.05f; 
+                
+                quaternion Rotation = gb_quat_axis_angle({0.0f, 1.0f, 0.0f}, Time);
+                
+                // Render Here
+                camera Camera = {{0.0f, 0.0f, -2.0f}, {0.0f, 0.0f, 1.0f}};
+                PushRenderStartup(&RenderBuffer, &Camera, PERSPECTIVE);
+                
+                PushSprite(&RenderBuffer, {0,0,0}, Rotation, 1.0f, &Texture);
+                
+                RunRenderBuffer(&RenderState, &RenderBuffer, Width, Height);
             }
-            
-            D11State.Swapchain->SetFullscreenState(FALSE, NULL);
         }
     }
-    
     
     return 0; 
 }

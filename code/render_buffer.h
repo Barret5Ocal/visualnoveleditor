@@ -35,7 +35,7 @@ struct render_entry_sprite
     quaternion Rotation;
     float Scale;
     
-    texture_asset Texture; 
+    texture_asset *Texture; 
 };
 
 
