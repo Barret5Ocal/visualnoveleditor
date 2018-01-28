@@ -12,8 +12,23 @@ void PushRenderStartup(render_buffer *Buffer, camera *Camera, projection Proj)
     Buffer->Startup = {*Camera, Proj};
 }
 
+void PushClear(render_buffer *Buffer, v4 Color)
+{
+    Buffer->Count++;
+    render_entry_header *Header = (render_entry_header *)PushStruct(Buffer->Memory, render_entry_header);
+    
+    Header->Type = CLEAR; 
+    
+    
+    render_entry_clear *Clear = (render_entry_clear *)PushStruct(Buffer->Memory, render_entry_clear);
+    
+    Clear->Color = Color; 
+}
+
+
 void PushSprite(render_buffer *Buffer, v3 Position, quaternion Rotation, float Scale, texture_asset *Texture)
 {
+    Buffer->Count++;
     render_entry_header *Header = (render_entry_header *)PushStruct(Buffer->Memory, render_entry_header);
     
     Header->Type = SPRITE; 
@@ -90,10 +105,10 @@ void PresentFrame(render_state *State)
 #endif
 }
 
-void DrawIndexed(render_state *State, m4 *Final)
+void DrawIndexed(render_state *State, int Count, m4 *Final)
 {
 #if defined(_WIN32)
-    D11DrawIndexed(&State->D11State, Final);
+    D11DrawIndexed(&State->D11State, Count, Final);
 #elif 
     InvalidCodePath;
 #endif
@@ -146,7 +161,7 @@ void RunRenderBuffer(render_state *State, render_buffer *Buffer, int Width, int 
                     0, 1, 2, 
                     0, 3, 1,
                 };
-                LoadIndices(State, &Indices[0], 4);
+                LoadIndices(State, &Indices[0], 6);
                 
                 LoadTexture(State, Sprite->Texture);
                 
@@ -161,11 +176,14 @@ void RunRenderBuffer(render_state *State, render_buffer *Buffer, int Width, int 
                 gb_mat4_perspective(&MatProjection, gb_to_radians(90.0f), (float)Width/(float)Height, 0.1f, 100.0f);
                 
                 
-                gb_mat4_look_at(&MatView, Buffer->Startup.Camera.Position, Buffer->Startup.Camera.Position + Buffer->Startup.Camera.Direction, {0.0f, 1.0f, 0.0f});
+                gb_mat4_look_at(&MatView, Buffer->Startup.Camera.Position,
+                                //Buffer->Startup.Camera.Position + Buffer->Startup.Camera.Direction
+                                {0.0f, 0.0f, 0.0f}
+                                , {0.0f, 1.0f, 0.0f});
                 
                 MatFinal = MatProjection * MatView * MatModel;
                 
-                DrawIndexed(State, &MatFinal);
+                DrawIndexed(State, 6, &MatFinal);
             }break; 
             default:
             {

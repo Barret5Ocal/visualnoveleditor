@@ -34,6 +34,7 @@ void LoadTexture(texture_asset *Texture, memory_arena *Arena, char *Filename)
     Texture->Width = x;
     Texture->Height = y;
     
+    unsigned char *copy = data;
     for(unsigned int Y = 0;
         Y < y;
         ++Y)
@@ -42,10 +43,11 @@ void LoadTexture(texture_asset *Texture, memory_arena *Arena, char *Filename)
             X < x;
             ++X)
         {
-            *Data++ = *data++;
+            *Data++ = *copy++;
         }
     }
     
+    //free(data);
     stbi_image_free(data);
 }
 

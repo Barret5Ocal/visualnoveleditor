@@ -138,7 +138,7 @@ void D11LoadVertices(directx11_state *State, vertex *Vertices, int Count)
 {
     D3D11_BUFFER_DESC BD = {};
     BD.Usage = D3D11_USAGE_DYNAMIC;
-    BD.ByteWidth = sizeof(vertex) * ArrayCount(Vertices);
+    BD.ByteWidth = sizeof(vertex) * Count;
     BD.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     BD.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     
@@ -155,7 +155,7 @@ void D11LoadIndices(directx11_state *State, DWORD *Indices, int Count)
     
     D3D11_BUFFER_DESC IBD = {};
     IBD.Usage = D3D11_USAGE_DYNAMIC;
-    IBD.ByteWidth = sizeof(DWORD) * ArrayCount(Indices);
+    IBD.ByteWidth = sizeof(DWORD) * Count;
     IBD.BindFlags = D3D11_BIND_INDEX_BUFFER;
     IBD. CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     IBD.MiscFlags = 0;
@@ -163,7 +163,8 @@ void D11LoadIndices(directx11_state *State, DWORD *Indices, int Count)
     State->Dev->CreateBuffer(&IBD, 0, &State->IBuffer);
     
     D3D11_MAPPED_SUBRESOURCE MS; 
-    State->Devcon->Map(State->IBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);memcpy(MS.pData, Indices, sizeof(Indices));
+    State->Devcon->Map(State->IBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
+    memcpy(MS.pData, Indices, sizeof(DWORD) * Count);
     State->Devcon->Unmap(State->IBuffer, 0);
 }
 
@@ -236,7 +237,7 @@ void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,
     Dev->CreateBlendState(&BD, BS);
 }
 
-void D11DrawIndexed(directx11_state *D11State, m4 *MatFinal)
+void D11DrawIndexed(directx11_state *D11State, int Count,m4 *MatFinal)
 {
     cbuffer ConstantB = {};
     
@@ -255,7 +256,7 @@ void D11DrawIndexed(directx11_state *D11State, m4 *MatFinal)
     D11State->Devcon->PSSetShaderResources(0, 1, &D11State->Texture);
     D11State->Devcon->UpdateSubresource(D11State->CBuffer, 0, 0, &ConstantB, 0, 0);
     
-    D11State->Devcon->DrawIndexed(6, 0, 0);
+    D11State->Devcon->DrawIndexed(Count, 0, 0);
     
 }
 

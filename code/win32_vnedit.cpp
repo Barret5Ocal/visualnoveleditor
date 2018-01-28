@@ -112,13 +112,11 @@ WinMain(HINSTANCE Instance,
             
             //Setup here 
             memory_arena MainMemory = {};
-            InitMemoryArena(&MainMemory, Gigabyte(2));
+            InitMemoryArena(&MainMemory, Gigabyte(1));
             
-            memory_arena RenderBufferMemory = {};
-            PushArena(&MainMemory, Megabyte(256));
+            memory_arena RenderBufferMemory = PushArena(&MainMemory, Megabyte(256));
             
-            render_buffer RenderBuffer = {};
-            RenderBuffer.Memory = &RenderBufferMemory; 
+            render_buffer RenderBuffer = {};RenderBuffer.Memory = &RenderBufferMemory; 
             
             texture_asset Texture = {};
             LoadTexture(&Texture, &MainMemory, "Wood.png");
@@ -144,6 +142,7 @@ WinMain(HINSTANCE Instance,
                 camera Camera = {{0.0f, 0.0f, -2.0f}, {0.0f, 0.0f, 1.0f}};
                 PushRenderStartup(&RenderBuffer, &Camera, PERSPECTIVE);
                 
+                PushClear(&RenderBuffer, {0.0f, 0.2f, 0.4f, 1.0f});
                 PushSprite(&RenderBuffer, {0,0,0}, Rotation, 1.0f, &Texture);
                 
                 RunRenderBuffer(&RenderState, &RenderBuffer, Width, Height);
