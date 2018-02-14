@@ -105,10 +105,10 @@ void PresentFrame(render_state *State)
 #endif
 }
 
-void DrawIndexed(render_state *State, int Count, m4 *Final)
+void DrawIndexed(render_state *State, int Count, m4 *Final, m4 Rotate)
 {
 #if defined(_WIN32)
-    D11DrawIndexed(&State->D11State, Count, Final);
+    D11DrawIndexed(&State->D11State, Count, Final, Rotate);
 #elif 
     InvalidCodePath;
 #endif
@@ -147,12 +147,12 @@ void RunRenderBuffer(render_state *State, render_buffer *Buffer, int Width, int 
                 render_entry_sprite *Sprite = (render_entry_sprite *)BufferMemory;
                 BufferMemory += sizeof(render_entry_sprite);
                 
-                vertex Vertices[]
+                vertex Vertices[] =
                 {
-                    {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}, // Top Left
-                    {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}}, // Bottom Right 
-                    {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // Bottom Left 
-                    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}}, // Top Right 
+                    {{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+                    {{1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+                    {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+                    {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
                 };
                 
                 LoadVertices(State, &Vertices[0], 4);
@@ -183,7 +183,7 @@ void RunRenderBuffer(render_state *State, render_buffer *Buffer, int Width, int 
                 
                 MatFinal = MatProjection * MatView * MatModel;
                 
-                DrawIndexed(State, 6, &MatFinal);
+                DrawIndexed(State, 6, &MatFinal, MatRotate);
             }break; 
             default:
             {
