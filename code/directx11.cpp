@@ -1,8 +1,9 @@
 #include <d3d11.h>
 
-#include "vshader.h"
-#include "pshader.h"
+//#include "vshader.h"
+//#include "pshader.h"
 
+#include <d3dcompiler.h>
 
 void InitializeD3D(IDXGISwapChain **Swapchain,             // the pointer to the swap chain interface
                    ID3D11Device **Dev,                     // the pointer to our Direct3D device interface
@@ -74,17 +75,78 @@ struct vertex
     v2 UV; 
 };
 
+struct cbuffer
+{
+    m4 Final;
+    m4 Rotation;
+    v4 LightVector;
+    v4 LightColor;
+    v4 AmbientColor;
+};
+
 void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
                   ID3D11VertexShader **VS,
                   ID3D11PixelShader **PS,
                   ID3D11InputLayout **Layout,
                   ID3D11Buffer **CBuffer)
 {
+    
+    char *Code = R"SHA(
+    cbuffer ConstantBuffer
+    {
+        float4x4 final;
+        float4x4 rotation;    // the rotation matrix
+        float4 lightvec;      // the light's vector
+        float4 lightcol;      // the light's color
+        float4 ambientcol;    // the ambient light's color
+    }
+    
+    struct VOut
+    {
+        float4 color : COLOR;
+        float2 texcoord : TEXCOORD;    // texture coordinates
+        float4 position : SV_POSITION;
+    };
+    
+    Texture2D Texture;
+    SamplerState ss; 
+    
+    VOut VShader(float4 position : POSITION, float4 normal : NORMAL, float2 texcoord : TEXCOORD)
+    {
+        VOut output;
+        
+        output.position = mul(final, position);
+        output.color = ambientcol;
+        
+        float4 norm = normalize(mul(rotation, normal));
+        float diffusebrightness = saturate(dot(norm, lightvec));
+        output.color += lightcol * diffusebrightness;
+        
+        output.texcoord = texcoord;    // set the texture coordinates, unmodified
+        
+        return output;
+    }
+    
+    float4 PShader(float4 color : COLOR, float2 texcoord : TEXCOORD) : SV_TARGET
+    {
+        float4 newcolor = color * Texture.Sample(ss, texcoord);
+        newcolor.a = 1.0f;
+        return newcolor;
+    }
+    )SHA";
+    
+    ID3DBlob *Errors; 
+    
+    ID3DBlob *VSCompiled; 
+    ID3DBlob *PSCompiled; 
+    D3DCompile(Code, strlen(Code), 0, 0, 0, "VShader", "vs_4_0", 0, 0, &VSCompiled, &Errors);
+    D3DCompile(Code, strlen(Code), 0, 0, 0, "PShader", "ps_4_0", 0, 0, &PSCompiled, &Errors);
+    
     // NOTE(Barret5Ocal): Init Pipeline
-    if(S_OK != Dev->CreateVertexShader(g_VShader, sizeof(g_VShader), 0, VS))
+    if(S_OK != Dev->CreateVertexShader(VSCompiled->GetBufferPointer(), VSCompiled->GetBufferSize(), 0, VS))
         InvalidCodePath; 
     
-    if(S_OK != Dev->CreatePixelShader(g_PShader, sizeof(g_PShader), 0, PS))
+    if(S_OK != Dev->CreatePixelShader(PSCompiled->GetBufferPointer(), PSCompiled->GetBufferSize(), 0, PS))
         InvalidCodePath;
     
     Devcon->VSSetShader(VS[0], 0, 0);
@@ -99,13 +161,13 @@ void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
     
     
     // NOTE(Barret5Ocal): make sure to update this function when you change the ied
-    Dev->CreateInputLayout(ied, 3, g_VShader, sizeof(g_VShader), Layout);
+    Dev->CreateInputLayout(ied, 3, VSCompiled->GetBufferPointer(), VSCompiled->GetBufferSize(), Layout);
     Devcon->IASetInputLayout(Layout[0]);
     
     D3D11_BUFFER_DESC BD = {};
     
     BD.Usage = D3D11_USAGE_DEFAULT; 
-    BD.ByteWidth = 176;
+    BD.ByteWidth = sizeof(cbuffer);
     BD.BindFlags = D3D11_BIND_CONSTANT_BUFFER; 
     
     Dev->CreateBuffer(&BD, 0, CBuffer);
@@ -232,14 +294,3 @@ void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,
     
     Dev->CreateBlendState(&BD, BS);
 }
-
-struct cbuffer
-{
-    m4 Final;
-    m4 Rotation;
-    v4 LightVector;
-    v4 LightColor;
-    v4 AmbientColor;
-};
-
-

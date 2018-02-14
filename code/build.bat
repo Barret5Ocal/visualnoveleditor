@@ -8,7 +8,7 @@ fxc /T ps_4_0 /E PShader /Fh pshader.h shader.shader
 
 pushd ..\..\build
 
-cl -nologo -Z7 ..\project\code\win32_vnedit.cpp User32.lib Gdi32.lib Winmm.lib d3d11.lib 
+cl -nologo -Z7 ..\project\code\win32_vnedit.cpp User32.lib Gdi32.lib Winmm.lib d3d11.lib d3dcompiler.lib
 
 
 popd 
