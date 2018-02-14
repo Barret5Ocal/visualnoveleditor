@@ -149,6 +149,11 @@ WinMain(HINSTANCE Instance,
                 
                 cbuffer ConstantB = {};
                 
+                ConstantB.LightVector = {1.0f, 1.0f, 1.0f, 0.0f};
+                ConstantB.LightColor = {0.5f, 0.5f, 0.5f, 1.0f};
+                ConstantB.AmbientColor = {0.2f, 0.2f, 0.2f, 1.0f};
+                
+                
                 m4 MatRotate, MatView, MatProjection, MatFinal;
                 gb_mat4_identity(&MatFinal);
                 gb_mat4_identity(&MatView);
@@ -161,8 +166,13 @@ WinMain(HINSTANCE Instance,
                 
                 gb_mat4_perspective(&MatProjection, gb_to_radians(90.0f), (float)Width/(float)Height, 0.1f, 100.0f);
                 
-                gb_mat4_look_at(&MatView, {0.0f, 0.0f, -2.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
+                gb_mat4_look_at(&MatView,
+                                {0.0f, 0.0f, 5.0f},    // the camera position
+                                {0.0f, 0.0f, 0.0f},    // the look-at position
+                                {0.0f, 1.0f, 0.0f});
+                
                 ConstantB.Final  = MatProjection * MatView * MatRotate; 
+                ConstantB.Rotation = MatRotate; 
                 
                 //Devcon->RSSetState(RSWireframe);
                 Devcon->RSSetState(RSDefault);
@@ -192,7 +202,6 @@ WinMain(HINSTANCE Instance,
             Swapchain->SetFullscreenState(FALSE, NULL);
         }
     }
-    
     
     return 0; 
 }

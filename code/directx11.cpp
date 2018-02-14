@@ -70,7 +70,7 @@ void InitializeD3D(IDXGISwapChain **Swapchain,             // the pointer to the
 struct vertex
 {
     v3 Position;
-    v4 Color; 
+    v3 Color; 
     v2 UV; 
 };
 
@@ -90,13 +90,13 @@ void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
     Devcon->VSSetShader(VS[0], 0, 0);
     Devcon->PSSetShader(PS[0], 0, 0);
     
-    // create the input element object
     D3D11_INPUT_ELEMENT_DESC ied[] =
     {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
+    
     
     // NOTE(Barret5Ocal): make sure to update this function when you change the ied
     Dev->CreateInputLayout(ied, 3, g_VShader, sizeof(g_VShader), Layout);
@@ -105,7 +105,7 @@ void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
     D3D11_BUFFER_DESC BD = {};
     
     BD.Usage = D3D11_USAGE_DEFAULT; 
-    BD.ByteWidth = 64;
+    BD.ByteWidth = 176;
     BD.BindFlags = D3D11_BIND_CONSTANT_BUFFER; 
     
     Dev->CreateBuffer(&BD, 0, CBuffer);
@@ -115,14 +115,14 @@ void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
 void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer **VBuffer, ID3D11Buffer **IBuffer, ID3D11ShaderResourceView **Texture)
 {
     
-    vertex Vertices[]
+    vertex Vertices[] =
     {
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f}}, // Top Left
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}, // Bottom Right 
-        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}}, // Bottom Left 
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // Top Right 
-        
+        {{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+        {{1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+        {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+        {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
     };
+    
     
     D3D11_BUFFER_DESC BD = {};
     BD.Usage = D3D11_USAGE_DYNAMIC;
@@ -205,7 +205,7 @@ void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,
     rd.DepthClipEnable = TRUE;
     rd.ScissorEnable = FALSE;
     rd.AntialiasedLineEnable = FALSE;
-    rd.MultisampleEnable = FALSE;
+    rd.MultisampleEnable = TRUE;
     rd.DepthBias = 0;
     rd.DepthBiasClamp = 0.0f;
     rd.SlopeScaledDepthBias = 0.0f;
@@ -236,6 +236,10 @@ void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,
 struct cbuffer
 {
     m4 Final;
+    m4 Rotation;
+    v4 LightVector;
+    v4 LightColor;
+    v4 AmbientColor;
 };
 
 
