@@ -42,12 +42,7 @@ typedef double real64;
 #define Gigabyte(Value) 1024 * Megabyte(Value)
 #define Terabyte(Value) 1024 * Gigabyte(Value)
 
-
-
-#include "memory.cpp"
-#include "assets.h"
 #include "directx11.cpp"
-#include "render_buffer.cpp"
 
 LRESULT CALLBACK
 MainWindowProc(HWND Window,
@@ -110,19 +105,37 @@ WinMain(HINSTANCE Instance,
         if(Window)
         {
             
-            //Setup here 
-            memory_arena MainMemory = {};
-            InitMemoryArena(&MainMemory, Gigabyte(1));
+            IDXGISwapChain *Swapchain;             // the pointer to the swap chain interface
+            ID3D11Device *Dev;                     // the pointer to our Direct3D device interface
+            ID3D11DeviceContext *Devcon;           // the pointer to our Direct3D device context
+            ID3D11RenderTargetView *Backbuffer;    // the pointer to our back buffer
             
-            memory_arena RenderBufferMemory = PushArena(&MainMemory, Megabyte(256));
+            ID3D11DepthStencilView *ZBuffer;       // the pointer to our depth buffer
             
-            render_buffer RenderBuffer = {};RenderBuffer.Memory = &RenderBufferMemory; 
+            InitializeD3D(&Swapchain, &Dev, &Devcon, &Backbuffer, &ZBuffer, 
+                          Width, Height, Window);
             
-            texture_asset Texture = {};
-            LoadTexture(&Texture, &MainMemory, "Wood.png");
+            ID3D11VertexShader *VS;
+            ID3D11PixelShader *PS;
+            ID3D11Buffer *CBuffer; // the pointer to the constant buffer
             
-            render_state RenderState = {};
-            InitRenderer(&RenderState, Width, Height, Window);
+            ID3D11InputLayout *Layout;  
+            InitPipeline( Dev, Devcon,
+                         &VS,
+                         &PS,
+                         &Layout, 
+                         &CBuffer);
+            
+            ID3D11Buffer *VBuffer;
+            ID3D11Buffer *IBuffer;
+            ID3D11ShaderResourceView *Texture;    // the pointer to the texture
+            
+            InitGraphics(Dev, Devcon, &VBuffer, &IBuffer, &Texture);
+            
+            ID3D11RasterizerState *RSDefault;   
+            ID3D11RasterizerState *RSWireframe; 
+            ID3D11BlendState *BS;
+            InitStates(Dev, &RSDefault, &RSWireframe, &BS);
             
             time_info TimeInfo = {};
             while(RunLoop(&TimeInfo, Running, 60))
@@ -134,19 +147,59 @@ WinMain(HINSTANCE Instance,
                     DispatchMessage(&Message);
                 }
                 
+                cbuffer ConstantB = {};
+                
+                ConstantB.LightVector = {1.0f, 1.0f, 1.0f, 0.0f};
+                ConstantB.LightColor = {0.5f, 0.5f, 0.5f, 1.0f};
+                ConstantB.AmbientColor = {0.2f, 0.2f, 0.2f, 1.0f};
+                
+                
+                m4 MatRotate, MatView, MatProjection, MatFinal;
+                gb_mat4_identity(&MatFinal);
+                gb_mat4_identity(&MatView);
+                gb_mat4_identity(&MatProjection);
+                gb_mat4_identity(&MatRotate);
+                
                 static float Time = 0.0f; Time += 0.05f; 
                 
-                quaternion Rotation = gb_quat_axis_angle({0.0f, 1.0f, 0.0f}, Time);
+                gb_mat4_rotate(&MatRotate, {0.0f, 1.0f, 0.0f}, Time);
                 
-                // Render Here
-                camera Camera = {{0.0f, 0.0f, -2.0f}, {0.0f, 0.0f, 1.0f}};
-                PushRenderStartup(&RenderBuffer, &Camera, PERSPECTIVE);
+                gb_mat4_perspective(&MatProjection, gb_to_radians(90.0f), (float)Width/(float)Height, 0.1f, 100.0f);
                 
-                PushClear(&RenderBuffer, {0.0f, 0.2f, 0.4f, 1.0f});
-                PushSprite(&RenderBuffer, {0,0,0}, Rotation, 1.0f, &Texture);
+                gb_mat4_look_at(&MatView,
+                                {0.0f, 0.0f, 5.0f},    // the camera position
+                                {0.0f, 0.0f, 0.0f},    // the look-at position
+                                {0.0f, 1.0f, 0.0f});
                 
-                RunRenderBuffer(&RenderState, &RenderBuffer, Width, Height);
+                ConstantB.Final  = MatProjection * MatView * MatRotate; 
+                ConstantB.Rotation = MatRotate; 
+                
+                //Devcon->RSSetState(RSWireframe);
+                Devcon->RSSetState(RSDefault);
+                Devcon->OMSetBlendState(BS, 0, 0xffffffff);
+                
+                float Color[] = {0.0f, 0.2f, 0.4f, 1.0f};
+                Devcon->ClearRenderTargetView(Backbuffer, Color);
+                
+                // clear the depth buffer
+                Devcon->ClearDepthStencilView(ZBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
+                
+                UINT Stride = sizeof(vertex);
+                UINT Offset = 0;
+                Devcon->IASetVertexBuffers(0, 1, &VBuffer, &Stride, &Offset);
+                Devcon->IASetIndexBuffer(IBuffer, DXGI_FORMAT_R32_UINT, 0);
+                
+                Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                
+                Devcon->PSSetShaderResources(0, 1, &Texture);
+                Devcon->UpdateSubresource(CBuffer, 0, 0, &ConstantB, 0, 0);
+                
+                Devcon->DrawIndexed(6, 0, 0);
+                
+                Swapchain->Present(0, 0);
             }
+            
+            Swapchain->SetFullscreenState(FALSE, NULL);
         }
     }
     

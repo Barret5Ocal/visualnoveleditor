@@ -14,3 +14,9 @@
 		- 2D
 		- 3D
 
+
+	- When you create a load a buffer in directx, it takes up memory. we can't
+	  do this every frame unless we free every frame. that is not very
+	  efficent, so we need to create a system that will keep track of the
+  	assets and only loads the ones that has not been loaded yet. We also
+	  need a system that will free assets that we are not using anymore 
