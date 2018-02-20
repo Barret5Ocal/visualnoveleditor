@@ -75,13 +75,30 @@ struct vertex
     v2 UV; 
 };
 
+struct dir_light
+{
+    v4 Direction;
+    v4 Diffuse;
+    v4 Ambient;
+};
+
+struct point_light 
+{    
+    v3 Position;
+    
+    float Constant;
+    float Linear;
+    float Quadratic;  
+    
+    v4 Ambient;
+    v4 Diffuse;
+};
+
 struct cbuffer
 {
+    m4 Model;
     m4 Final;
-    m4 Rotation;
-    v4 LightVector;
-    v4 LightColor;
-    v4 AmbientColor;
+    dir_light DirLight;
 };
 
 void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
@@ -92,15 +109,22 @@ void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
 {
     
     char *Code = R"SHA(
+    
+struct dir_light
+{
+    float4 Direction;
+    float4 Diffuse;
+    float4 Ambient;
+};
+
     cbuffer ConstantBuffer
     {
+        float4x4 model;
         float4x4 final;
-        float4x4 rotation;    // the rotation matrix
-        float4 lightvec;      // the light's vector
-        float4 lightcol;      // the light's color
-        float4 ambientcol;    // the ambient light's color
-    }
-    
+        
+        dir_light DirLight[1];
+}
+
     struct VOut
     {
         float4 color : COLOR;
@@ -111,16 +135,26 @@ void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
     Texture2D Texture;
     SamplerState ss; 
     
+    float4 DirLightCalc(float4x4 rotationmat, float4 normalvec, float4 lightvector, float4 lightcolor)
+    {
+    
+        float4 norm = normalize(mul(rotationmat, normalvec));
+        float diffusebrightness = saturate(dot(norm, lightvector));
+          return lightcolor * diffusebrightness;
+          
+}
+
     VOut VShader(float4 position : POSITION, float4 normal : NORMAL, float2 texcoord : TEXCOORD)
     {
         VOut output;
         
-        output.position = mul(final, position);
-        output.color = ambientcol;
         
-        float4 norm = normalize(mul(rotation, normal));
-        float diffusebrightness = saturate(dot(norm, lightvec));
-        output.color += lightcol * diffusebrightness;
+        output.position = mul(final, position);
+        output.color = DirLight[0].Ambient;
+        
+        output.color += DirLightCalc(model, normal, DirLight[0].Direction, DirLight[0].Diffuse);
+        
+        
         
         output.texcoord = texcoord;    // set the texture coordinates, unmodified
         
@@ -142,7 +176,6 @@ void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
     D3DCompile(Code, strlen(Code), 0, 0, 0, "VShader", "vs_4_0", 0, 0, &VSCompiled, &Errors);
     D3DCompile(Code, strlen(Code), 0, 0, 0, "PShader", "ps_4_0", 0, 0, &PSCompiled, &Errors);
     
-    // NOTE(Barret5Ocal): Init Pipeline
     if(S_OK != Dev->CreateVertexShader(VSCompiled->GetBufferPointer(), VSCompiled->GetBufferSize(), 0, VS))
         InvalidCodePath; 
     
@@ -161,7 +194,7 @@ void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
     
     
     // NOTE(Barret5Ocal): make sure to update this function when you change the ied
-    Dev->CreateInputLayout(ied, 3, VSCompiled->GetBufferPointer(), VSCompiled->GetBufferSize(), Layout);
+    Dev->CreateInputLayout(ied, ArrayCount(ied), VSCompiled->GetBufferPointer(), VSCompiled->GetBufferSize(), Layout);
     Devcon->IASetInputLayout(Layout[0]);
     
     D3D11_BUFFER_DESC BD = {};

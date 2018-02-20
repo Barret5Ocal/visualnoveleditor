@@ -137,6 +137,21 @@ WinMain(HINSTANCE Instance,
             ID3D11BlendState *BS;
             InitStates(Dev, &RSDefault, &RSWireframe, &BS);
             
+            
+            m4 MatRotate, MatView, MatProjection, MatFinal;
+            gb_mat4_identity(&MatFinal);
+            gb_mat4_identity(&MatView);
+            gb_mat4_identity(&MatProjection);
+            gb_mat4_identity(&MatRotate);
+            
+            gb_mat4_perspective(&MatProjection, gb_to_radians(90.0f), (float)Width/(float)Height, 0.1f, 100.0f);
+            
+            gb_mat4_look_at(&MatView,
+                            {0.0f, 0.0f, 5.0f},    // the camera position
+                            {0.0f, 0.0f, 0.0f},    // the look-at position
+                            {0.0f, 1.0f, 0.0f});
+            
+            
             time_info TimeInfo = {};
             while(RunLoop(&TimeInfo, Running, 60))
             {
@@ -149,30 +164,20 @@ WinMain(HINSTANCE Instance,
                 
                 cbuffer ConstantB = {};
                 
-                ConstantB.LightVector = {1.0f, 1.0f, 1.0f, 0.0f};
-                ConstantB.LightColor = {0.5f, 0.5f, 0.5f, 1.0f};
-                ConstantB.AmbientColor = {0.2f, 0.2f, 0.2f, 1.0f};
+                ConstantB.DirLight.Direction = {1.0f, 1.0f, 1.0f, 0.0f};
+                ConstantB.DirLight.Diffuse = {0.5f, 0.5f, 0.5f, 1.0f};
+                ConstantB.DirLight.Ambient = {0.2f, 0.2f, 0.2f, 1.0f};
                 
-                
-                m4 MatRotate, MatView, MatProjection, MatFinal;
-                gb_mat4_identity(&MatFinal);
-                gb_mat4_identity(&MatView);
-                gb_mat4_identity(&MatProjection);
-                gb_mat4_identity(&MatRotate);
                 
                 static float Time = 0.0f; Time += 0.05f; 
                 
                 gb_mat4_rotate(&MatRotate, {0.0f, 1.0f, 0.0f}, Time);
                 
-                gb_mat4_perspective(&MatProjection, gb_to_radians(90.0f), (float)Width/(float)Height, 0.1f, 100.0f);
+                ConstantB.Model= MatRotate; 
                 
-                gb_mat4_look_at(&MatView,
-                                {0.0f, 0.0f, 5.0f},    // the camera position
-                                {0.0f, 0.0f, 0.0f},    // the look-at position
-                                {0.0f, 1.0f, 0.0f});
+                MatFinal = MatProjection * MatView * MatRotate;
                 
-                ConstantB.Final  = MatProjection * MatView * MatRotate; 
-                ConstantB.Rotation = MatRotate; 
+                ConstantB.Final = MatFinal;
                 
                 //Devcon->RSSetState(RSWireframe);
                 Devcon->RSSetState(RSDefault);
