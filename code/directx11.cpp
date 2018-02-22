@@ -236,7 +236,6 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
     {
         0, 1, 2, 
         0, 3, 1,
-        
     };
     
     D3D11_BUFFER_DESC IBD = {};
@@ -291,7 +290,7 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
 
 // initializes the states
 void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,   
-                ID3D11RasterizerState **RSWireframe, ID3D11BlendState **BS)
+                ID3D11RasterizerState **RSWireframe, ID3D11BlendState **BS,ID3D11SamplerState **pSS)
 {
     D3D11_RASTERIZER_DESC rd;
     rd.FillMode = D3D11_FILL_SOLID;
@@ -326,4 +325,21 @@ void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,
     BD.AlphaToCoverageEnable = FALSE;
     
     Dev->CreateBlendState(&BD, BS);
+    
+    D3D11_SAMPLER_DESC sd;
+    
+    sd.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    sd.MaxAnisotropy = 8;    // use Anisotropic x 8
+    sd.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;      // horizontally the texture is repeated
+    sd.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;    // vertically the texture is mirrored
+    sd.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;     // if it's a 3D texture, it is clamped
+    sd.BorderColor[0] = 1.0f;    // set the border color to white
+    sd.BorderColor[1] = 1.0f;
+    sd.BorderColor[2] = 1.0f;
+    sd.BorderColor[3] = 1.0f;
+    sd.MinLOD = 0.0f;
+    sd.MaxLOD = FLT_MAX;
+    sd.MipLODBias = 2.0f;    // decrease mip level of detail by 2
+    
+    Dev->CreateSamplerState(&sd, pSS);
 }

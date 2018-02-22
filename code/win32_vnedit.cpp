@@ -4,6 +4,8 @@ static int Running = 1;
 
 #include "b50_timing.h"
 
+#include <float.h>
+
 #define GB_MATH_IMPLEMENTATION
 #include "gb_math.h"
 typedef gbVec2 v2;
@@ -42,6 +44,7 @@ typedef double real64;
 #define Gigabyte(Value) 1024 * Megabyte(Value)
 #define Terabyte(Value) 1024 * Gigabyte(Value)
 
+
 #include "directx11.cpp"
 
 LRESULT CALLBACK
@@ -69,6 +72,32 @@ MainWindowProc(HWND Window,
     }
     
     return Result; //DefWindowProc(Window, Message, WParam, LParam);
+}
+
+void ClearScreen(ID3D11DeviceContext *Devcon, ID3D11RenderTargetView *Backbuffer,    // the pointer to our back buffer
+                 ID3D11DepthStencilView *ZBuffer)
+{
+    float Color[] = {0.0f, 0.2f, 0.4f, 1.0f};
+    Devcon->ClearRenderTargetView(Backbuffer, Color);
+    
+    // clear the depth buffer
+    Devcon->ClearDepthStencilView(ZBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
+}
+
+void DrawCard(ID3D11DeviceContext *Devcon, ID3D11Buffer *VBuffer, ID3D11Buffer *IBuffer, ID3D11ShaderResourceView *Texture, ID3D11Buffer *CBuffer, cbuffer *ConstantB)
+{
+    Devcon->UpdateSubresource(CBuffer, 0, 0, ConstantB, 0, 0);
+    
+    UINT Stride = sizeof(vertex);
+    UINT Offset = 0;
+    Devcon->IASetVertexBuffers(0, 1, &VBuffer, &Stride, &Offset);
+    Devcon->IASetIndexBuffer(IBuffer, DXGI_FORMAT_R32_UINT, 0);
+    
+    Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    
+    Devcon->PSSetShaderResources(0, 1, &Texture);
+    
+    Devcon->DrawIndexed(6, 0, 0);
 }
 
 int CALLBACK 
@@ -132,14 +161,48 @@ WinMain(HINSTANCE Instance,
             
             InitGraphics(Dev, Devcon, &VBuffer, &IBuffer, &Texture);
             
+            // TODO(Barret5Ocal): Load Background Texture
+            int x,y,n;
+            unsigned char *data = stbi_load("bedroom_test.png", &x, &y, &n, 0);
+            
+            D3D11_TEXTURE2D_DESC desc = {};
+            desc.Width = x;
+            desc.Height = y;
+            desc.MipLevels = desc.ArraySize = 1;
+            desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            desc.SampleDesc.Count = 1;
+            desc.Usage = D3D11_USAGE_DEFAULT; //D3D11_USAGE_DYNAMIC; 
+            desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+            desc.CPUAccessFlags = 0; //D3D11_CPU_ACCESS_WRITE;
+            desc.MiscFlags = 0;
+            
+            D3D11_SUBRESOURCE_DATA  SubData = {}; 
+            SubData.pSysMem = data; 
+            SubData.SysMemPitch = x * 4;
+            SubData.SysMemSlicePitch = 4 * x * y; 
+            
+            ID3D11Texture2D *pTexture = NULL;
+            ID3D11ShaderResourceView *BackgroundTexture;
+            
+            HRESULT Result = Dev->CreateTexture2D( &desc, &SubData, &pTexture );
+            if(Result != S_OK)
+                InvalidCodePath;
+            Result = Dev->CreateShaderResourceView(pTexture, 0, &BackgroundTexture);
+            if(Result != S_OK)
+                InvalidCodePath;
+            
+            
+            
             ID3D11RasterizerState *RSDefault;   
             ID3D11RasterizerState *RSWireframe; 
             ID3D11BlendState *BS;
-            InitStates(Dev, &RSDefault, &RSWireframe, &BS);
+            ID3D11SamplerState *SamplerState;
+            InitStates(Dev, &RSDefault, &RSWireframe, &BS, &SamplerState);
             
             
-            m4 MatRotate, MatView, MatProjection, MatFinal;
+            m4 MatRotate, MatView, MatProjection, MatFinal, MatModel;
             gb_mat4_identity(&MatFinal);
+            gb_mat4_identity(&MatModel);
             gb_mat4_identity(&MatView);
             gb_mat4_identity(&MatProjection);
             gb_mat4_identity(&MatRotate);
@@ -162,13 +225,33 @@ WinMain(HINSTANCE Instance,
                     DispatchMessage(&Message);
                 }
                 
+                
+                //Devcon->RSSetState(RSWireframe);
+                Devcon->RSSetState(RSDefault);
+                Devcon->OMSetBlendState(BS, 0, 0xffffffff);
+                Devcon->PSSetSamplers(0, 1, &SamplerState);
+                
+                ClearScreen(Devcon, Backbuffer, ZBuffer); 
+                
                 cbuffer ConstantB = {};
                 
                 ConstantB.DirLight.Direction = {1.0f, 1.0f, 1.0f, 0.0f};
                 ConstantB.DirLight.Diffuse = {0.5f, 0.5f, 0.5f, 1.0f};
                 ConstantB.DirLight.Ambient = {0.2f, 0.2f, 0.2f, 1.0f};
                 
+                //MatModel = {};
+                float Scalar = 4.5f; 
+                gb_mat4_scale(&MatModel, {Scalar, Scalar, Scalar});
                 
+                ConstantB.Model= MatModel; 
+                
+                MatFinal = MatProjection * MatView * MatModel;
+                
+                ConstantB.Final = MatFinal;
+                
+                DrawCard(Devcon, VBuffer, IBuffer, BackgroundTexture, CBuffer, &ConstantB);
+                
+                // NOTE(Barret5Ocal): Drawing Sprite
                 static float Time = 0.0f; Time += 0.05f; 
                 
                 gb_mat4_rotate(&MatRotate, {0.0f, 1.0f, 0.0f}, Time);
@@ -179,27 +262,7 @@ WinMain(HINSTANCE Instance,
                 
                 ConstantB.Final = MatFinal;
                 
-                //Devcon->RSSetState(RSWireframe);
-                Devcon->RSSetState(RSDefault);
-                Devcon->OMSetBlendState(BS, 0, 0xffffffff);
-                
-                float Color[] = {0.0f, 0.2f, 0.4f, 1.0f};
-                Devcon->ClearRenderTargetView(Backbuffer, Color);
-                
-                // clear the depth buffer
-                Devcon->ClearDepthStencilView(ZBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
-                
-                UINT Stride = sizeof(vertex);
-                UINT Offset = 0;
-                Devcon->IASetVertexBuffers(0, 1, &VBuffer, &Stride, &Offset);
-                Devcon->IASetIndexBuffer(IBuffer, DXGI_FORMAT_R32_UINT, 0);
-                
-                Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-                
-                Devcon->PSSetShaderResources(0, 1, &Texture);
-                Devcon->UpdateSubresource(CBuffer, 0, 0, &ConstantB, 0, 0);
-                
-                Devcon->DrawIndexed(6, 0, 0);
+                DrawCard(Devcon, VBuffer, IBuffer, Texture, CBuffer, &ConstantB); 
                 
                 Swapchain->Present(0, 0);
             }
