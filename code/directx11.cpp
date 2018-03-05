@@ -209,7 +209,7 @@ struct dir_light
 
 void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer **VBuffer, ID3D11Buffer **IBuffer, ID3D11ShaderResourceView **Texture)
 {
-    
+#if 1
     vertex Vertices[] =
     {
         {{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
@@ -217,7 +217,15 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
         {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
         {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
     };
-    
+#else 
+    vertex Vertices[] =
+    {
+        {{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+        {{1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+        {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+        {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+    };
+#endif 
     
     D3D11_BUFFER_DESC BD = {};
     BD.Usage = D3D11_USAGE_DYNAMIC;
@@ -234,8 +242,13 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
     
     DWORD Indices[] = 
     {
+#if 1
         0, 1, 2, 
         0, 3, 1,
+#else 
+        0, 1, 3,
+        0, 2, 1, 
+#endif 
     };
     
     D3D11_BUFFER_DESC IBD = {};
@@ -247,15 +260,18 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
     
     Dev->CreateBuffer(&IBD, 0, IBuffer);
     
+    int is =sizeof(Indices);  
     Devcon->Map(IBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
     memcpy(MS.pData, Indices, sizeof(Indices));
     Devcon->Unmap(IBuffer[0], 0);
     
+    //int sx,sy,sn;
+    //unsigned char *SD = stbi_load("StructuredArt.png", &sx, &sy, &sn, 4);
     
     // NOTE(Barret5Ocal): Texture Stuff
     // TODO(Barret5Ocal): Look into more Texture stuff 
     int x,y,n;
-    unsigned char *data = stbi_load("Wood.png", &x, &y, &n, 4);
+    unsigned char *data = stbi_load("bedroom_test.png", &x, &y, &n, 4);
     
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = x;
@@ -263,25 +279,29 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
     desc.MipLevels = desc.ArraySize = 1;
     desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.SampleDesc.Count = 1;
-    desc.Usage = D3D11_USAGE_DEFAULT; //D3D11_USAGE_DYNAMIC; 
+    desc.Usage = D3D11_USAGE_DEFAULT; //D3D11_USAGE_DYNAMIC;  
     desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     desc.CPUAccessFlags = 0; //D3D11_CPU_ACCESS_WRITE;
     desc.MiscFlags = 0;
     
+#if 1
     D3D11_SUBRESOURCE_DATA  SubData = {}; 
     SubData.pSysMem = data; 
     SubData.SysMemPitch = x * 4;
     SubData.SysMemSlicePitch = 4 * x * y; 
+#endif
     
     ID3D11Texture2D *pTexture = NULL;
-    HRESULT Result = Dev->CreateTexture2D( &desc, &SubData, &pTexture );
+    HRESULT Result = Dev->CreateTexture2D( &desc,
+                                          &SubData,
+                                          &pTexture );
     if(Result != S_OK)
         InvalidCodePath;
     Result = Dev->CreateShaderResourceView(pTexture, 0, Texture);
     if(Result != S_OK)
         InvalidCodePath;
 #if 0
-    Devcon->Map(pTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
+    Devcon->Map(pTexture, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &MS);
     memcpy(MS.pData, data, n * x * y);
     Devcon->Unmap(pTexture, 0);
 #endif 
@@ -298,8 +318,8 @@ void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,
     rd.FrontCounterClockwise = FALSE;
     rd.DepthClipEnable = TRUE;
     rd.ScissorEnable = FALSE;
-    rd.AntialiasedLineEnable = FALSE;
-    rd.MultisampleEnable = TRUE;
+    rd.AntialiasedLineEnable = TRUE;
+    rd.MultisampleEnable = FALSE;
     rd.DepthBias = 0;
     rd.DepthBiasClamp = 0.0f;
     rd.SlopeScaledDepthBias = 0.0f;

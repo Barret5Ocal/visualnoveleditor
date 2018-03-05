@@ -84,22 +84,6 @@ void ClearScreen(ID3D11DeviceContext *Devcon, ID3D11RenderTargetView *Backbuffer
     Devcon->ClearDepthStencilView(ZBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
 }
 
-void DrawCard(ID3D11DeviceContext *Devcon, ID3D11Buffer *VBuffer, ID3D11Buffer *IBuffer, ID3D11ShaderResourceView *Texture, ID3D11Buffer *CBuffer, cbuffer *ConstantB)
-{
-    Devcon->UpdateSubresource(CBuffer, 0, 0, ConstantB, 0, 0);
-    
-    UINT Stride = sizeof(vertex);
-    UINT Offset = 0;
-    Devcon->IASetVertexBuffers(0, 1, &VBuffer, &Stride, &Offset);
-    Devcon->IASetIndexBuffer(IBuffer, DXGI_FORMAT_R32_UINT, 0);
-    
-    Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    
-    Devcon->PSSetShaderResources(0, 1, &Texture);
-    
-    Devcon->DrawIndexed(6, 0, 0);
-}
-
 int CALLBACK 
 WinMain(HINSTANCE Instance,
         HINSTANCE PrevInstance,
@@ -161,35 +145,6 @@ WinMain(HINSTANCE Instance,
             
             InitGraphics(Dev, Devcon, &VBuffer, &IBuffer, &Texture);
             
-            // TODO(Barret5Ocal): Load Background Texture
-            int x,y,n;
-            unsigned char *data = stbi_load("bedroom_test.png", &x, &y, &n, 0);
-            
-            D3D11_TEXTURE2D_DESC desc = {};
-            desc.Width = x;
-            desc.Height = y;
-            desc.MipLevels = desc.ArraySize = 1;
-            desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-            desc.SampleDesc.Count = 1;
-            desc.Usage = D3D11_USAGE_DEFAULT; //D3D11_USAGE_DYNAMIC; 
-            desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-            desc.CPUAccessFlags = 0; //D3D11_CPU_ACCESS_WRITE;
-            desc.MiscFlags = 0;
-            
-            D3D11_SUBRESOURCE_DATA  SubData = {}; 
-            SubData.pSysMem = data; 
-            SubData.SysMemPitch = x * 4;
-            SubData.SysMemSlicePitch = 4 * x * y; 
-            
-            ID3D11Texture2D *pTexture = NULL;
-            ID3D11ShaderResourceView *BackgroundTexture;
-            
-            HRESULT Result = Dev->CreateTexture2D( &desc, &SubData, &pTexture );
-            if(Result != S_OK)
-                InvalidCodePath;
-            Result = Dev->CreateShaderResourceView(pTexture, 0, &BackgroundTexture);
-            if(Result != S_OK)
-                InvalidCodePath;
             
             
             
@@ -249,20 +204,18 @@ WinMain(HINSTANCE Instance,
                 
                 ConstantB.Final = MatFinal;
                 
-                DrawCard(Devcon, VBuffer, IBuffer, BackgroundTexture, CBuffer, &ConstantB);
+                Devcon->UpdateSubresource(CBuffer, 0, 0, &ConstantB, 0, 0);
                 
-                // NOTE(Barret5Ocal): Drawing Sprite
-                static float Time = 0.0f; Time += 0.05f; 
+                UINT Stride = sizeof(vertex);
+                UINT Offset = 0;
+                Devcon->IASetVertexBuffers(0, 1, &VBuffer, &Stride, &Offset);
+                Devcon->IASetIndexBuffer(IBuffer, DXGI_FORMAT_R32_UINT, 0);
                 
-                gb_mat4_rotate(&MatRotate, {0.0f, 1.0f, 0.0f}, Time);
+                Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
                 
-                ConstantB.Model= MatRotate; 
+                Devcon->PSSetShaderResources(0, 1, &Texture);
                 
-                MatFinal = MatProjection * MatView * MatRotate;
-                
-                ConstantB.Final = MatFinal;
-                
-                DrawCard(Devcon, VBuffer, IBuffer, Texture, CBuffer, &ConstantB); 
+                Devcon->DrawIndexed(6, 0, 0);
                 
                 Swapchain->Present(0, 0);
             }
