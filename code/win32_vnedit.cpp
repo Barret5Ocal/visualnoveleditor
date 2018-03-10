@@ -112,6 +112,10 @@ WinMain(HINSTANCE Instance,
         {
             FullSetup(Window);
             
+            int x,y,n;
+            unsigned char *data = stbi_load("bedroom.png", &x, &y, &n, 4);
+            texture_asset Background = {data, x, y, n};
+            
             time_info TimeInfo = {};
             while(RunLoop(&TimeInfo, Running, 60))
             {
@@ -121,7 +125,13 @@ WinMain(HINSTANCE Instance,
                     TranslateMessage(&Message);
                     DispatchMessage(&Message);
                 }
+                Devcon->RSSetState(RSDefault);
+                Devcon->OMSetBlendState(BS, 0, 0xffffffff);
+                Devcon->PSSetSamplers(0, 1, &SamplerState);
                 
+                ClearScreen(Devcon, Backbuffer, ZBuffer); 
+                
+                DrawBackGround(&Background);
                 
                 RenderToScreen();
             }
