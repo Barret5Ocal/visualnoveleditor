@@ -17,6 +17,9 @@ typedef gbQuat quaternion;
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+//#define STB_IMAGE_WRITE_IMPLEMENTATION
+//#include "stb_image_write.h"
+
 #include <stdint.h>
 typedef int8_t int8;
 typedef int16_t int16;
@@ -44,6 +47,8 @@ typedef double real64;
 #define Gigabyte(Value) 1024 * Megabyte(Value)
 #define Terabyte(Value) 1024 * Gigabyte(Value)
 
+#define ScreenWidth 1280
+#define ScreenHeight 720
 
 #include "directx11.cpp"
 
@@ -74,16 +79,6 @@ MainWindowProc(HWND Window,
     return Result; //DefWindowProc(Window, Message, WParam, LParam);
 }
 
-void ClearScreen(ID3D11DeviceContext *Devcon, ID3D11RenderTargetView *Backbuffer,    // the pointer to our back buffer
-                 ID3D11DepthStencilView *ZBuffer)
-{
-    float Color[] = {0.0f, 0.2f, 0.4f, 1.0f};
-    Devcon->ClearRenderTargetView(Backbuffer, Color);
-    
-    // clear the depth buffer
-    Devcon->ClearDepthStencilView(ZBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
-}
-
 int CALLBACK 
 WinMain(HINSTANCE Instance,
         HINSTANCE PrevInstance,
@@ -98,8 +93,6 @@ WinMain(HINSTANCE Instance,
     
     if(RegisterClass(&WindowClass))
     {
-        int Width = 1280;
-        int Height = 720;
         HWND Window =
             CreateWindowEx(0,
                            WindowClass.lpszClassName,
@@ -107,8 +100,8 @@ WinMain(HINSTANCE Instance,
                            WS_OVERLAPPEDWINDOW|WS_VISIBLE,
                            CW_USEDEFAULT,
                            CW_USEDEFAULT,
-                           Width,
-                           Height,
+                           ScreenWidth,
+                           ScreenHeight,
                            0,
                            0,
                            Instance,
@@ -117,58 +110,7 @@ WinMain(HINSTANCE Instance,
         
         if(Window)
         {
-            
-            IDXGISwapChain *Swapchain;             // the pointer to the swap chain interface
-            ID3D11Device *Dev;                     // the pointer to our Direct3D device interface
-            ID3D11DeviceContext *Devcon;           // the pointer to our Direct3D device context
-            ID3D11RenderTargetView *Backbuffer;    // the pointer to our back buffer
-            
-            ID3D11DepthStencilView *ZBuffer;       // the pointer to our depth buffer
-            
-            InitializeD3D(&Swapchain, &Dev, &Devcon, &Backbuffer, &ZBuffer, 
-                          Width, Height, Window);
-            
-            ID3D11VertexShader *VS;
-            ID3D11PixelShader *PS;
-            ID3D11Buffer *CBuffer; // the pointer to the constant buffer
-            
-            ID3D11InputLayout *Layout;  
-            InitPipeline( Dev, Devcon,
-                         &VS,
-                         &PS,
-                         &Layout, 
-                         &CBuffer);
-            
-            ID3D11Buffer *VBuffer;
-            ID3D11Buffer *IBuffer;
-            ID3D11ShaderResourceView *Texture;    // the pointer to the texture
-            
-            InitGraphics(Dev, Devcon, &VBuffer, &IBuffer, &Texture);
-            
-            
-            
-            
-            ID3D11RasterizerState *RSDefault;   
-            ID3D11RasterizerState *RSWireframe; 
-            ID3D11BlendState *BS;
-            ID3D11SamplerState *SamplerState;
-            InitStates(Dev, &RSDefault, &RSWireframe, &BS, &SamplerState);
-            
-            
-            m4 MatRotate, MatView, MatProjection, MatFinal, MatModel;
-            gb_mat4_identity(&MatFinal);
-            gb_mat4_identity(&MatModel);
-            gb_mat4_identity(&MatView);
-            gb_mat4_identity(&MatProjection);
-            gb_mat4_identity(&MatRotate);
-            
-            gb_mat4_perspective(&MatProjection, gb_to_radians(90.0f), (float)Width/(float)Height, 0.1f, 100.0f);
-            
-            gb_mat4_look_at(&MatView,
-                            {0.0f, 0.0f, 5.0f},    // the camera position
-                            {0.0f, 0.0f, 0.0f},    // the look-at position
-                            {0.0f, 1.0f, 0.0f});
-            
+            FullSetup(Window);
             
             time_info TimeInfo = {};
             while(RunLoop(&TimeInfo, Running, 60))
@@ -181,47 +123,12 @@ WinMain(HINSTANCE Instance,
                 }
                 
                 
-                //Devcon->RSSetState(RSWireframe);
-                Devcon->RSSetState(RSDefault);
-                Devcon->OMSetBlendState(BS, 0, 0xffffffff);
-                Devcon->PSSetSamplers(0, 1, &SamplerState);
-                
-                ClearScreen(Devcon, Backbuffer, ZBuffer); 
-                
-                cbuffer ConstantB = {};
-                
-                ConstantB.DirLight.Direction = {1.0f, 1.0f, 1.0f, 0.0f};
-                ConstantB.DirLight.Diffuse = {0.5f, 0.5f, 0.5f, 1.0f};
-                ConstantB.DirLight.Ambient = {0.2f, 0.2f, 0.2f, 1.0f};
-                
-                //MatModel = {};
-                float Scalar = 4.5f; 
-                gb_mat4_scale(&MatModel, {Scalar, Scalar, Scalar});
-                
-                ConstantB.Model= MatModel; 
-                
-                MatFinal = MatProjection * MatView * MatModel;
-                
-                ConstantB.Final = MatFinal;
-                
-                Devcon->UpdateSubresource(CBuffer, 0, 0, &ConstantB, 0, 0);
-                
-                UINT Stride = sizeof(vertex);
-                UINT Offset = 0;
-                Devcon->IASetVertexBuffers(0, 1, &VBuffer, &Stride, &Offset);
-                Devcon->IASetIndexBuffer(IBuffer, DXGI_FORMAT_R32_UINT, 0);
-                
-                Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-                
-                Devcon->PSSetShaderResources(0, 1, &Texture);
-                
-                Devcon->DrawIndexed(6, 0, 0);
-                
-                Swapchain->Present(0, 0);
+                RenderToScreen();
             }
             
             Swapchain->SetFullscreenState(FALSE, NULL);
         }
+        
     }
     
     return 0; 

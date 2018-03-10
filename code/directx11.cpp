@@ -5,6 +5,33 @@
 
 #include <d3dcompiler.h>
 
+
+global_variable IDXGISwapChain *Swapchain;             // the pointer to the swap chain interface
+global_variable ID3D11Device *Dev;                     // the pointer to our Direct3D device interface
+global_variable ID3D11DeviceContext *Devcon;           // the pointer to our Direct3D device context
+global_variable ID3D11RenderTargetView *Backbuffer;    // the pointer to our back buffer
+
+global_variable ID3D11DepthStencilView *ZBuffer;       // the pointer to our depth buffer
+
+
+global_variable ID3D11VertexShader *VS;
+global_variable ID3D11PixelShader *PS;
+global_variable ID3D11Buffer *CBuffer; // the pointer to the constant buffer
+
+global_variable ID3D11InputLayout *Layout;  
+
+
+global_variable ID3D11RasterizerState *RSDefault;   
+global_variable ID3D11RasterizerState *RSWireframe; 
+global_variable ID3D11BlendState *BS;
+global_variable ID3D11SamplerState *SamplerState;
+
+global_variable m4 MatRotate, MatView, MatProjection, MatFinal, MatModel;
+
+global_variable ID3D11Buffer *VBuffer;
+global_variable ID3D11Buffer *IBuffer;
+global_variable ID3D11ShaderResourceView *Texture;    // the pointer to the texture
+
 void InitializeD3D(IDXGISwapChain **Swapchain,             // the pointer to the swap chain interface
                    ID3D11Device **Dev,                     // the pointer to our Direct3D device interface
                    ID3D11DeviceContext **Devcon,           // the pointer to our Direct3D device context
@@ -25,6 +52,7 @@ void InitializeD3D(IDXGISwapChain **Swapchain,             // the pointer to the
     SwapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
     
     D3D11CreateDeviceAndSwapChain(0, D3D_DRIVER_TYPE_HARDWARE, 0, 0, 0, 0, D3D11_SDK_VERSION, &SwapChainDesc, Swapchain, Dev, 0, Devcon);
+    
     
     D3D11_TEXTURE2D_DESC Texd = {};
     Texd.Width = Width; 
@@ -164,7 +192,7 @@ struct dir_light
     float4 PShader(float4 color : COLOR, float2 texcoord : TEXCOORD) : SV_TARGET
     {
         float4 newcolor = color * Texture.Sample(ss, texcoord);
-        newcolor.a = 1.0f;
+        //newcolor.a = 1.0f;
         return newcolor;
     }
     )SHA";
@@ -207,25 +235,23 @@ struct dir_light
     Devcon->VSSetConstantBuffers(0, 1, CBuffer);
 }
 
-void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer **VBuffer, ID3D11Buffer **IBuffer, ID3D11ShaderResourceView **Texture)
+struct texture_asset
 {
-#if 1
+    unsigned char* Data;
+    int X, Y, N;
+    
+};
+
+void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer **VBuffer, ID3D11Buffer **IBuffer, ID3D11ShaderResourceView **Texture, texture_asset *Asset)
+{
+    
     vertex Vertices[] =
     {
         {{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-        {{1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+        {{1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
         {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-        {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
     };
-#else 
-    vertex Vertices[] =
-    {
-        {{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-        {{1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-        {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-        {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    };
-#endif 
     
     D3D11_BUFFER_DESC BD = {};
     BD.Usage = D3D11_USAGE_DYNAMIC;
@@ -242,13 +268,8 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
     
     DWORD Indices[] = 
     {
-#if 1
         0, 1, 2, 
         0, 3, 1,
-#else 
-        0, 1, 3,
-        0, 2, 1, 
-#endif 
     };
     
     D3D11_BUFFER_DESC IBD = {};
@@ -265,17 +286,13 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
     memcpy(MS.pData, Indices, sizeof(Indices));
     Devcon->Unmap(IBuffer[0], 0);
     
-    //int sx,sy,sn;
-    //unsigned char *SD = stbi_load("StructuredArt.png", &sx, &sy, &sn, 4);
     
     // NOTE(Barret5Ocal): Texture Stuff
     // TODO(Barret5Ocal): Look into more Texture stuff 
-    int x,y,n;
-    unsigned char *data = stbi_load("bedroom_test.png", &x, &y, &n, 4);
     
     D3D11_TEXTURE2D_DESC desc = {};
-    desc.Width = x;
-    desc.Height = y;
+    desc.Width = Asset->X;
+    desc.Height = Asset->Y;
     desc.MipLevels = desc.ArraySize = 1;
     desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.SampleDesc.Count = 1;
@@ -284,12 +301,12 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
     desc.CPUAccessFlags = 0; //D3D11_CPU_ACCESS_WRITE;
     desc.MiscFlags = 0;
     
-#if 1
+    
     D3D11_SUBRESOURCE_DATA  SubData = {}; 
-    SubData.pSysMem = data; 
-    SubData.SysMemPitch = x * 4;
-    SubData.SysMemSlicePitch = 4 * x * y; 
-#endif
+    SubData.pSysMem = Asset->Data; 
+    SubData.SysMemPitch = Asset->X * 4;
+    SubData.SysMemSlicePitch = 4 * Asset->X * Asset->Y; 
+    
     
     ID3D11Texture2D *pTexture = NULL;
     HRESULT Result = Dev->CreateTexture2D( &desc,
@@ -300,11 +317,7 @@ void InitGraphics(ID3D11Device *Dev, ID3D11DeviceContext *Devcon, ID3D11Buffer *
     Result = Dev->CreateShaderResourceView(pTexture, 0, Texture);
     if(Result != S_OK)
         InvalidCodePath;
-#if 0
-    Devcon->Map(pTexture, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &MS);
-    memcpy(MS.pData, data, n * x * y);
-    Devcon->Unmap(pTexture, 0);
-#endif 
+    
     // NOTE(Barret5Ocal): End Texture Stuff
 }
 
@@ -362,4 +375,93 @@ void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,
     sd.MipLODBias = 2.0f;    // decrease mip level of detail by 2
     
     Dev->CreateSamplerState(&sd, pSS);
+}
+
+void FullSetup(HWND Window)
+{
+    
+    InitializeD3D(&Swapchain, &Dev, &Devcon, &Backbuffer, &ZBuffer, 
+                  ScreenWidth, ScreenHeight, Window);
+    InitPipeline( Dev, Devcon,
+                 &VS,
+                 &PS,
+                 &Layout, 
+                 &CBuffer);
+    
+    
+    texture_asset Asset = {};
+    int x,y,n;
+    unsigned char *data = stbi_load("bedroom_test3.png", &x, &y, &n, 4);
+    Asset = {data, x, y, n};
+    InitGraphics(Dev, Devcon, &VBuffer, &IBuffer, &Texture, &Asset);
+    
+    
+    InitStates(Dev, &RSDefault, &RSWireframe, &BS, &SamplerState);
+    
+    
+    gb_mat4_identity(&MatFinal);
+    gb_mat4_identity(&MatModel);
+    gb_mat4_identity(&MatView);
+    gb_mat4_identity(&MatProjection);
+    gb_mat4_identity(&MatRotate);
+    
+    gb_mat4_perspective(&MatProjection, gb_to_radians(90.0f), (float)ScreenWidth/(float)ScreenHeight, 0.1f, 100.0f);
+    
+    gb_mat4_look_at(&MatView,
+                    {0.0f, 0.0f, 5.0f},    // the camera position
+                    {0.0f, 0.0f, 0.0f},    // the look-at position
+                    {0.0f, 1.0f, 0.0f});
+    
+}
+
+void ClearScreen(ID3D11DeviceContext *Devcon, ID3D11RenderTargetView *Backbuffer,    // the pointer to our back buffer
+                 ID3D11DepthStencilView *ZBuffer)
+{
+    float Color[] = {0.0f, 0.2f, 0.4f, 1.0f};
+    Devcon->ClearRenderTargetView(Backbuffer, Color);
+    
+    // clear the depth buffer
+    Devcon->ClearDepthStencilView(ZBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
+}
+
+void RenderToScreen()
+{
+    
+    //Devcon->RSSetState(RSWireframe);
+    Devcon->RSSetState(RSDefault);
+    Devcon->OMSetBlendState(BS, 0, 0xffffffff);
+    Devcon->PSSetSamplers(0, 1, &SamplerState);
+    
+    ClearScreen(Devcon, Backbuffer, ZBuffer); 
+    
+    cbuffer ConstantB = {};
+    
+    ConstantB.DirLight.Direction = {1.0f, 1.0f, 1.0f, 0.0f};
+    ConstantB.DirLight.Diffuse = {0.5f, 0.5f, 0.5f, 1.0f};
+    ConstantB.DirLight.Ambient = {0.2f, 0.2f, 0.2f, 1.0f};
+    
+    //MatModel = {};
+    float Scalar = 5.0f; 
+    gb_mat4_scale(&MatModel, {(16/2)+1, (9/2)+1, 1.0f});
+    
+    ConstantB.Model= MatModel; 
+    
+    MatFinal = MatProjection * MatView * MatModel;
+    
+    ConstantB.Final = MatFinal;
+    
+    Devcon->UpdateSubresource(CBuffer, 0, 0, &ConstantB, 0, 0);
+    
+    UINT Stride = sizeof(vertex);
+    UINT Offset = 0;
+    Devcon->IASetVertexBuffers(0, 1, &VBuffer, &Stride, &Offset);
+    Devcon->IASetIndexBuffer(IBuffer, DXGI_FORMAT_R32_UINT, 0);
+    
+    Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    
+    Devcon->PSSetShaderResources(0, 1, &Texture);
+    
+    Devcon->DrawIndexed(6, 0, 0);
+    
+    Swapchain->Present(0, 0);
 }
