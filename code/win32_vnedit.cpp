@@ -113,8 +113,8 @@ WinMain(HINSTANCE Instance,
             FullSetup(Window);
             
             int x,y,n;
-            unsigned char *data = stbi_load("bedroom.png", &x, &y, &n, 4);
-            texture_asset Background = {data, x, y, n};
+            unsigned char *data = stbi_load("3_blacksmith_a.jpg", &x, &y, &n, 4);
+            directx_texture_asset Background = {data, x, y, n};
             
             time_info TimeInfo = {};
             while(RunLoop(&TimeInfo, Running, 60))
