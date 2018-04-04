@@ -242,7 +242,7 @@ struct directx_buffer
     ID3D11ShaderResourceView *Texture;   
 };
 
-struct texture_asset
+struct directx_texture_asset
 {
     unsigned char* Data;
     int X, Y, N;
@@ -306,7 +306,7 @@ void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,
     Dev->CreateSamplerState(&sd, pSS);
 }
 
-void DrawBackGround(texture_asset *Background)
+void DrawBackGround(directx_texture_asset *Background)
 {
     if(!Background->InGPU)
     {
@@ -341,7 +341,7 @@ void DrawBackGround(texture_asset *Background)
         IBD.Usage = D3D11_USAGE_DYNAMIC;
         IBD.ByteWidth = sizeof(DWORD) * ArrayCount(Indices);
         IBD.BindFlags = D3D11_BIND_INDEX_BUFFER;
-        IBD. CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        IBD.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         IBD.MiscFlags = 0;
         
         Dev->CreateBuffer(&IBD, 0, &Background->Buffers.IBuffer);
@@ -386,7 +386,7 @@ void DrawBackGround(texture_asset *Background)
     cbuffer ConstantB = {};
     
     ConstantB.DirLight.Direction = {1.0f, 1.0f, 1.0f, 0.0f};
-    ConstantB.DirLight.Diffuse = {0.5f, 0.5f, 0.5f, 1.0f};
+    ConstantB.DirLight.Diffuse = {1.0f, 1.0f, 1.0f, 1.0f}; 
     ConstantB.DirLight.Ambient = {0.2f, 0.2f, 0.2f, 1.0f};
     
     //MatModel = {};
@@ -411,6 +411,8 @@ void DrawBackGround(texture_asset *Background)
     Devcon->PSSetShaderResources(0, 1, &Background->Buffers.Texture);
     
     Devcon->DrawIndexed(6, 0, 0);
+    
+    
 }
 
 void FullSetup(HWND Window)
@@ -418,7 +420,7 @@ void FullSetup(HWND Window)
     
     InitializeD3D(&Swapchain, &Dev, &Devcon, &Backbuffer, &ZBuffer, 
                   ScreenWidth, ScreenHeight, Window);
-    InitPipeline( Dev, Devcon,
+    InitPipeline(Dev, Devcon,
                  &VS,
                  &PS,
                  &Layout, 
