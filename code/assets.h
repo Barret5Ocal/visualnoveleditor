@@ -23,6 +23,24 @@ struct model_asset
     texture_asset *Texture; 
 };
 
+enum asset_type
+{
+    TEXTURE,
+    MODEL,
+};
+
+struct asset
+{
+    int Type;
+    void *Memory; 
+};
+
+struct scene
+{
+    char *AssetNames[];
+    memory_arena* RenderBuffers; 
+};
+
 void LoadTexture(texture_asset *Texture, memory_arena *Arena, char *Filename)
 {
     int x,y,n;
@@ -51,33 +69,22 @@ void LoadTexture(texture_asset *Texture, memory_arena *Arena, char *Filename)
     stbi_image_free(data);
 }
 
-void LoadCardModel(model_asset *Model, memory_arena *Arena)
+void LoadAsset(asset_stadium *Stadium, int Type, char *FileName)
 {
-    vertex Vertices[]
+    switch (Type)
     {
-        {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}, // Top Left
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}}, // Bottom Right 
-        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // Bottom Left 
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}}, // Top Right 
-        
-    };
-    
-    vertex *VertexBuffer = (vertex *)PushArray(Arena, 4, vertex);
-    B50memcpy(VertexBuffer, Vertices, sizeof(Vertices));
-    
-    Model->Vertices = VertexBuffer;
-    Model->VertexCount = 4; 
-    
-    DWORD Indices[] = 
-    {
-        0, 1, 2, 
-        0, 3, 1,
-    };
-    
-    DWORD *IndexBuffer = (DWORD *)PushArray(Arena, 6, DWORD);
-    B50memcpy(IndexBuffer, Indices, sizeof(Indices));
-    
-    Model->Indices = IndexBuffer; 
-    Model->IndexCount = 6; 
-    
+        case TEXTURE:
+        {
+            asset *Asset = (asset *)PushStruct(Stadium->Asset, asset);
+            Asset->Type = TEXTURE;
+            
+            texture_asset *Texture = (texture_asset *)PushStruct(Stadium->Texture, texture_asset);
+            
+            LoadTexture(Texture, Stadium->Texture, FileName);
+        }break; 
+        default: 
+        {
+            InvalidCodePath; 
+        }
+    }
 }

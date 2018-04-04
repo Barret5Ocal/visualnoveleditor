@@ -10,11 +10,54 @@ void B50memcpy(void * destination, const void * source, size_t num )
     }
 }
 
+template <typename T> 
+struct b50_list
+{
+    int Num;
+    T *Ptr;
+    
+    void Append(T Thing)
+    {
+        int Size = sizeof(T);
+        if(Ptr)
+        {
+            T *Temp = (T *)malloc(Size * Num + 1);
+            
+            memcpy(Temp, Ptr, Size * Num);
+            
+            free(Ptr);
+            Ptr = Temp;
+            
+            *(Ptr + (Num * Size)) = Thing;
+            
+            Num++;
+        }
+        else
+        {
+            Ptr = (T *)malloc(Size);
+            *Ptr = Thing;
+            Num = 1;
+        }
+    }
+    
+    T operator[](int x)
+    {
+        return Ptr[x];
+    }
+};
+
 struct memory_arena
 {
     unsigned char *Memory; 
     size_t Size;
     size_t Used;
+};
+
+struct asset_stadium
+{
+    memory_arena *Assets;
+    memory_arena *Textures;
+    memory_arena *Models; 
 };
 
 void InitMemoryArena(memory_arena *Memory, size_t Size)
