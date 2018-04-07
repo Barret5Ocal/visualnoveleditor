@@ -1,3 +1,7 @@
+#include "include\compare-string.c"
+#include "include\hash-string.c"
+#include "include\hash-table.c"
+
 struct texture_asset
 {
     unsigned char *Memory;
@@ -35,10 +39,21 @@ struct asset
     void *Memory; 
 };
 
+struct asset_stadium
+{
+    HashTable *Table; 
+    int Count; 
+    memory_arena Assets; 
+    memory_arena Texture;
+    memory_arena Model;
+    memory_arena AssetStrings; 
+};
+
 struct scene
 {
-    char *AssetNames[];
-    memory_arena* RenderBuffers; 
+    int NameCount;
+    char *AssetNames;
+    memory_arena RenderBuffers; 
 };
 
 void LoadTexture(texture_asset *Texture, memory_arena *Arena, char *Filename)
@@ -69,22 +84,107 @@ void LoadTexture(texture_asset *Texture, memory_arena *Arena, char *Filename)
     stbi_image_free(data);
 }
 
+int B50StringLen(char *String)
+{
+    int Result = 0;
+    while(*String++)
+    {
+        Result++; 
+    }
+    
+    return Result; 
+}
+
+int32 B50strcmp(uint8 *S1, uint8 *S2)
+{
+    while(*S1 == *S2)
+    {
+        if(!*S1)
+            return 0; 
+        ++S1;
+        ++S2;
+    }
+    
+    return ((*S1 < *S2) ? -1 : 1);
+}
+
+int32 B50atoi(uint8 *Str)
+{
+    int32 Sign = 1;
+    int32 Value = 0;
+    uint8 C;
+    
+    if(*Str == '-')
+    {
+        Sign = -1;
+        ++Str;
+    }
+    
+    if(Str[0] == '0' && (Str[1] == 'x' || Str[1] == 'X'))
+    {
+        Str += 2; 
+        while(1)
+        {
+            C = *Str;
+            ++Str;
+            if(C >= '0' && C <= '9')
+                Value = Value * 16 + C - '0';
+            else if (C >= 'a' && C <= 'f')
+                Value = Value * 16 + C - 'a' + 10;
+            else if (C >= 'A' && C <= 'F')
+                Value = Value * 16 + C - 'A' + 10;
+            else
+                return Value * Sign;
+        }
+    }
+    
+    while(1)
+    {
+        C = *Str;
+        ++Str;
+        if((C < '0') || (C > '9'))
+        
+            return Sign * Value;
+        
+        Value = Value * 10 + C - '0';
+    }
+}
+
 void LoadAsset(asset_stadium *Stadium, int Type, char *FileName)
 {
     switch (Type)
     {
         case TEXTURE:
         {
-            asset *Asset = (asset *)PushStruct(Stadium->Asset, asset);
+            asset *Asset = (asset *)PushStruct(&Stadium->Assets, asset);
             Asset->Type = TEXTURE;
             
-            texture_asset *Texture = (texture_asset *)PushStruct(Stadium->Texture, texture_asset);
+            texture_asset *Texture = (texture_asset *)PushStruct(&Stadium->Texture, texture_asset);
+            Asset->Memory = Texture; 
             
-            LoadTexture(Texture, Stadium->Texture, FileName);
+            int NameLen = B50StringLen(FileName);
+            
+            char *Name = (char *)PushArray(&Stadium->AssetStrings, NameLen + 1, char);
+            
+            B50memcpy(Name, FileName, NameLen);
+            
+            char buffer[10];
+            stbsp_sprintf(buffer, "%i", Stadium->Count++);
+            hash_table_insert(Stadium->Table, Name, buffer);
+            
+            LoadTexture(Texture, &Stadium->Texture, FileName);
         }break; 
         default: 
         {
             InvalidCodePath; 
         }
     }
+}
+
+texture_asset *GetTexture(asset_stadium *Stadium, char *Name)
+{
+    int Index = B50atoi((uint8 *)hash_table_lookup(Stadium->Table, Name));
+    
+    asset *Asset = ((asset *)Stadium->Assets.Memory) + Index;
+    return (texture_asset *)Asset->Memory;
 }

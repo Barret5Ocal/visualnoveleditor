@@ -96,13 +96,6 @@ void InitializeD3D(IDXGISwapChain **Swapchain,             // the pointer to the
     
 }
 
-struct vertex
-{
-    v3 Position;
-    v3 Color; 
-    v2 UV; 
-};
-
 struct dir_light
 {
     v4 Direction;
