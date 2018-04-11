@@ -136,6 +136,8 @@ WinMain(HINSTANCE Instance,
             
             texture_asset *Background = GetTexture(&Stadium, "bedroom.png");
             
+            directx_buffer Buffers = {};
+            LoadBuffers(&Buffers, Background);
             // TODO(Barret5Ocal): ^ test first
             
             time_info TimeInfo = {};
@@ -148,13 +150,16 @@ WinMain(HINSTANCE Instance,
                     DispatchMessage(&Message);
                 }
                 
-                Devcon->RSSetState(RSDefault);
+                //Devcon->RSSetState(RSDefault);
+                Devcon->RSSetState(RSWireframe);
+                
                 Devcon->OMSetBlendState(BS, 0, 0xffffffff);
                 Devcon->PSSetSamplers(0, 1, &SamplerState);
                 
+                
                 ClearScreen(Devcon, Backbuffer, ZBuffer); 
                 
-                //DrawBackGround(&Background);
+                DrawBackGround(&Buffers);
                 
                 RenderToScreen();
             }

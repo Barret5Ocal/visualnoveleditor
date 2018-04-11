@@ -235,14 +235,6 @@ struct directx_buffer
     ID3D11ShaderResourceView *Texture;   
 };
 
-struct directx_texture_asset
-{
-    unsigned char* Data;
-    int X, Y, N;
-    uint32 InGPU;
-    directx_buffer Buffers;
-};
-
 // initializes the states
 void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,   
                 ID3D11RasterizerState **RSWireframe, ID3D11BlendState **BS,ID3D11SamplerState **pSS)
@@ -299,83 +291,82 @@ void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,
     Dev->CreateSamplerState(&sd, pSS);
 }
 
-void DrawBackGround(directx_texture_asset *Background)
+void LoadBuffers(directx_buffer *Buffers, texture_asset *Texture)
 {
-    if(!Background->InGPU)
+    vertex Vertices[] =
     {
-        vertex Vertices[] =
-        {
-            {{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-            {{1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-            {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-            {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-        };
-        
-        D3D11_BUFFER_DESC BD = {};
-        BD.Usage = D3D11_USAGE_DYNAMIC;
-        BD.ByteWidth = sizeof(vertex) * ArrayCount(Vertices);
-        BD.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-        BD.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        
-        Dev->CreateBuffer(&BD, 0, &Background->Buffers.VBuffer);
-        
-        D3D11_MAPPED_SUBRESOURCE MS; 
-        Devcon->Map(Background->Buffers.VBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
-        memcpy(MS.pData, Vertices, sizeof(Vertices));
-        Devcon->Unmap(Background->Buffers.VBuffer, 0);
-        
-        DWORD Indices[] = 
-        {
-            0, 1, 2, 
-            0, 3, 1,
-        };
-        
-        D3D11_BUFFER_DESC IBD = {};
-        IBD.Usage = D3D11_USAGE_DYNAMIC;
-        IBD.ByteWidth = sizeof(DWORD) * ArrayCount(Indices);
-        IBD.BindFlags = D3D11_BIND_INDEX_BUFFER;
-        IBD.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        IBD.MiscFlags = 0;
-        
-        Dev->CreateBuffer(&IBD, 0, &Background->Buffers.IBuffer);
-        
-        int is =sizeof(Indices);  
-        Devcon->Map(Background->Buffers.IBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
-        memcpy(MS.pData, Indices, sizeof(Indices));
-        Devcon->Unmap(Background->Buffers.IBuffer, 0);
-        
-        D3D11_TEXTURE2D_DESC desc = {};
-        desc.Width = Background->X;
-        desc.Height = Background->Y;
-        desc.MipLevels = desc.ArraySize = 1;
-        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        desc.SampleDesc.Count = 1;
-        desc.Usage = D3D11_USAGE_DEFAULT; //D3D11_USAGE_DYNAMIC;  
-        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        desc.CPUAccessFlags = 0; //D3D11_CPU_ACCESS_WRITE;
-        desc.MiscFlags = 0;
-        
-        
-        D3D11_SUBRESOURCE_DATA  SubData = {}; 
-        SubData.pSysMem = Background->Data; 
-        SubData.SysMemPitch = Background->X * 4;
-        SubData.SysMemSlicePitch = 4 * Background->X * Background->Y; 
-        
-        
-        ID3D11Texture2D *pTexture = NULL;
-        HRESULT Result = Dev->CreateTexture2D( &desc,
-                                              &SubData,
-                                              &pTexture );
-        if(Result != S_OK)
-            InvalidCodePath;
-        Result = Dev->CreateShaderResourceView(pTexture, 0, &Background->Buffers.Texture);
-        if(Result != S_OK)
-            InvalidCodePath;
-        
-        Background->InGPU = true;
-    }
+        {{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+        {{1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+        {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+    };
+    
+    D3D11_BUFFER_DESC BD = {};
+    BD.Usage = D3D11_USAGE_DYNAMIC;
+    BD.ByteWidth = sizeof(vertex) * ArrayCount(Vertices);
+    BD.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    BD.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    
+    Dev->CreateBuffer(&BD, 0, &Buffers->VBuffer);
+    
+    D3D11_MAPPED_SUBRESOURCE MS; 
+    Devcon->Map(Buffers->VBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
+    memcpy(MS.pData, Vertices, sizeof(Vertices));
+    Devcon->Unmap(Buffers->VBuffer, 0);
+    
+    DWORD Indices[] = 
+    {
+        0, 1, 2, 
+        0, 3, 1,
+    };
+    
+    D3D11_BUFFER_DESC IBD = {};
+    IBD.Usage = D3D11_USAGE_DYNAMIC;
+    IBD.ByteWidth = sizeof(DWORD) * ArrayCount(Indices);
+    IBD.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    IBD.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    IBD.MiscFlags = 0;
+    
+    Dev->CreateBuffer(&IBD, 0, &Buffers->IBuffer);
+    
+    int is =sizeof(Indices);  
+    Devcon->Map(Buffers->IBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MS);
+    memcpy(MS.pData, Indices, sizeof(Indices));
+    Devcon->Unmap(Buffers->IBuffer, 0);
+    
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = Texture->Width;
+    desc.Height = Texture->Height;
+    desc.MipLevels = desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT; //D3D11_USAGE_DYNAMIC;  
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    desc.CPUAccessFlags = 0; //D3D11_CPU_ACCESS_WRITE;
+    desc.MiscFlags = 0;
     
     
+    D3D11_SUBRESOURCE_DATA  SubData = {}; 
+    SubData.pSysMem = Texture->Memory; 
+    SubData.SysMemPitch = Texture->Width * 4;
+    SubData.SysMemSlicePitch = 4 * Texture->Width * Texture->Height; 
+    
+    
+    ID3D11Texture2D *pTexture = NULL;
+    HRESULT Result = Dev->CreateTexture2D( &desc,
+                                          &SubData,
+                                          &pTexture );
+    if(Result != S_OK)
+        InvalidCodePath;
+    Result = Dev->CreateShaderResourceView(pTexture, 0, &Buffers->Texture);
+    if(Result != S_OK)
+        InvalidCodePath;
+    
+    //return Buffers; 
+}
+
+void DrawBackGround(directx_buffer *Buffers)
+{
     cbuffer ConstantB = {};
     
     ConstantB.DirLight.Direction = {1.0f, 1.0f, 1.0f, 0.0f};
@@ -384,7 +375,8 @@ void DrawBackGround(directx_texture_asset *Background)
     
     //MatModel = {};
     float Scalar = 5.0f; 
-    gb_mat4_scale(&MatModel, {(16/2)+1, (9/2)+1, 1.0f});
+    //gb_mat4_scale(&MatModel, {(16/2)+1, (9/2)+1, 1.0f});
+    
     
     ConstantB.Model= MatModel; 
     
@@ -396,12 +388,12 @@ void DrawBackGround(directx_texture_asset *Background)
     
     UINT Stride = sizeof(vertex);
     UINT Offset = 0;
-    Devcon->IASetVertexBuffers(0, 1, &Background->Buffers.VBuffer, &Stride, &Offset);
-    Devcon->IASetIndexBuffer(Background->Buffers.IBuffer, DXGI_FORMAT_R32_UINT, 0);
+    Devcon->IASetVertexBuffers(0, 1, &Buffers->VBuffer, &Stride, &Offset);
+    Devcon->IASetIndexBuffer(Buffers->IBuffer, DXGI_FORMAT_R32_UINT, 0);
     
     Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     
-    Devcon->PSSetShaderResources(0, 1, &Background->Buffers.Texture);
+    Devcon->PSSetShaderResources(0, 1, &Buffers->Texture);
     
     Devcon->DrawIndexed(6, 0, 0);
     
