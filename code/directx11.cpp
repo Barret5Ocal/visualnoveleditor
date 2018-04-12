@@ -373,19 +373,18 @@ void LoadBuffers(directx_buffer *Buffers, directx_texture_asset *Background)
     
 }
 
-void DrawBackGround(directx_texture_asset *Background)
+void DrawBackGround(directx_buffer *Buffers)
 {
-    
-    
     cbuffer ConstantB = {};
     
     ConstantB.DirLight.Direction = {1.0f, 1.0f, 1.0f, 0.0f};
-    ConstantB.DirLight.Diffuse = {0.5f, 0.5f, 0.5f, 1.0f};
+    ConstantB.DirLight.Diffuse = {1.0f, 1.0f, 1.0f, 1.0f}; 
     ConstantB.DirLight.Ambient = {0.2f, 0.2f, 0.2f, 1.0f};
     
     //MatModel = {};
     float Scalar = 5.0f; 
     gb_mat4_scale(&MatModel, {(16/2)+1, (9/2)+1, 1.0f});
+    
     
     ConstantB.Model= MatModel; 
     
@@ -397,14 +396,16 @@ void DrawBackGround(directx_texture_asset *Background)
     
     UINT Stride = sizeof(vertex);
     UINT Offset = 0;
-    Devcon->IASetVertexBuffers(0, 1, &Background->Buffers.VBuffer, &Stride, &Offset);
-    Devcon->IASetIndexBuffer(Background->Buffers.IBuffer, DXGI_FORMAT_R32_UINT, 0);
+    Devcon->IASetVertexBuffers(0, 1, &Buffers->VBuffer, &Stride, &Offset);
+    Devcon->IASetIndexBuffer(Buffers->IBuffer, DXGI_FORMAT_R32_UINT, 0);
     
     Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     
-    Devcon->PSSetShaderResources(0, 1, &Background->Buffers.Texture);
+    Devcon->PSSetShaderResources(0, 1, &Buffers->Texture);
     
     Devcon->DrawIndexed(6, 0, 0);
+    
+    
 }
 
 void FullSetup(HWND Window)
@@ -412,7 +413,7 @@ void FullSetup(HWND Window)
     
     InitializeD3D(&Swapchain, &Dev, &Devcon, &Backbuffer, &ZBuffer, 
                   ScreenWidth, ScreenHeight, Window);
-    InitPipeline( Dev, Devcon,
+    InitPipeline(Dev, Devcon,
                  &VS,
                  &PS,
                  &Layout, 

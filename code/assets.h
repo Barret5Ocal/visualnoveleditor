@@ -39,11 +39,14 @@ struct asset
     void *Memory; 
 };
 
+
 struct scene
 {
     int NameCount;
     char *AssetNames;
-    memory_arena* RenderBuffers; 
+    
+    memory_arena RenderBuffers; 
+    
 };
 
 
@@ -152,18 +155,21 @@ int32 B50atoi(uint8 *Str)
     }
 }
 
+
 asset *LoadAsset(asset_stadium *Stadium, int Type, char *FileName)
 {
-    asset *Asset;
+    asset *Asset = 0;
     switch (Type)
     {
         case TEXTURE:
         {
-            Asset = (asset *)PushStruct(&Stadium->Assets, asset);
+            
+            asset *Asset = (asset *)PushStruct(&Stadium->Assets, asset);
             Asset->Type = TEXTURE;
             
             texture_asset *Texture = (texture_asset *)PushStruct(&Stadium->Textures, texture_asset);
-            Asset->Memory = Texture;
+            Asset->Memory = Texture; 
+            
             
             int NameLen = B50StringLen(FileName);
             
@@ -176,6 +182,7 @@ asset *LoadAsset(asset_stadium *Stadium, int Type, char *FileName)
             hash_table_insert(Stadium->Table, Name, buffer);
             
             LoadTexture(Texture, &Stadium->Textures, FileName);
+            
         }break; 
         default: 
         {
@@ -183,11 +190,13 @@ asset *LoadAsset(asset_stadium *Stadium, int Type, char *FileName)
         }
     }
     
+    
     return Asset;
 }
 
 texture_asset *GetTexture(asset_stadium *Stadium, char *Name)
 {
+    
     char *IndexC = (char *)hash_table_lookup(Stadium->Table, Name);
     int Index = B50atoi((uint8 *)IndexC);
     

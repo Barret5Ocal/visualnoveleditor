@@ -17,10 +17,13 @@ typedef gbQuat quaternion;
 #define STB_IMAGE_IMPLEMENTATION
 #include "include\stb_image.h"
 
+//#define STB_SPRINTF_IMPLEMENTATION
+//#include "include\stb_sprintf.h"
+//#define STB_IMAGE_WRITE_IMPLEMENTATION
+//#include "include\stb_image_write.h"
+
 #define STB_SPRINTF_IMPLEMENTATION
 #include "include\stb_sprintf.h"
-//#define STB_IMAGE_WRITE_IMPLEMENTATION
-//#include "stb_image_write.h"
 
 #include <stdint.h>
 typedef int8_t int8;
@@ -112,9 +115,9 @@ WinMain(HINSTANCE Instance,
                            Instance,
                            0);
         
-        
         if(Window)
         {
+            
             FullSetup(Window);
             
             memory_arena MainArena = {};
@@ -154,12 +157,15 @@ WinMain(HINSTANCE Instance,
                 }
                 
                 Devcon->RSSetState(RSDefault);
+                //Devcon->RSSetState(RSWireframe);
+                
                 Devcon->OMSetBlendState(BS, 0, 0xffffffff);
                 Devcon->PSSetSamplers(0, 1, &SamplerState);
                 
+                
                 ClearScreen(Devcon, Backbuffer, ZBuffer); 
                 
-                DrawBackGround(&Background);
+                DrawBackGround(&Background.Buffers);
                 
                 RenderToScreen();
             }
