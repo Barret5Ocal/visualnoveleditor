@@ -53,13 +53,6 @@ struct memory_arena
     size_t Used;
 };
 
-struct asset_stadium
-{
-    memory_arena *Assets;
-    memory_arena *Textures;
-    memory_arena *Models; 
-};
-
 void InitMemoryArena(memory_arena *Memory, size_t Size)
 {
     

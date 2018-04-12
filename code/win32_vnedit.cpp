@@ -7,7 +7,7 @@ static int Running = 1;
 #include <float.h>
 
 #define GB_MATH_IMPLEMENTATION
-#include "gb_math.h"
+#include "include\gb_math.h"
 typedef gbVec2 v2;
 typedef gbVec3 v3;
 typedef gbVec4 v4;
@@ -15,8 +15,10 @@ typedef gbMat4 m4;
 typedef gbQuat quaternion;
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "include\stb_image.h"
 
+#define STB_SPRINTF_IMPLEMENTATION
+#include "include\stb_sprintf.h"
 //#define STB_IMAGE_WRITE_IMPLEMENTATION
 //#include "stb_image_write.h"
 
@@ -49,6 +51,9 @@ typedef double real64;
 
 #define ScreenWidth 1280
 #define ScreenHeight 720
+
+#include "memory.cpp"
+#include "assets.h"
 
 #include "directx11.cpp"
 
@@ -112,9 +117,31 @@ WinMain(HINSTANCE Instance,
         {
             FullSetup(Window);
             
-            int x,y,n;
-            unsigned char *data = stbi_load("bedroom.png", &x, &y, &n, 4);
-            texture_asset Background = {data, x, y, n};
+            memory_arena MainArena = {};
+            InitMemoryArena(&MainArena, Gigabyte(1));
+            
+            asset_stadium Stadium = {};
+            Stadium.Assets = PushArena(&MainArena, Megabyte(265));
+            Stadium.Textures = PushArena(&MainArena, Megabyte(265));
+            Stadium.Models = PushArena(&MainArena, Megabyte(265));
+            Stadium.AssetStrings = PushArena(&MainArena, Megabyte(64));
+            
+            Stadium.Table = hash_table_new(string_hash, string_equal);
+            hash_table_register_free_functions(Stadium.Table, NULL, free);
+            
+            LoadAsset(&Stadium, TEXTURE, "bedroom.png");
+            
+            texture_asset *Texture = GetTexture(&Stadium, "bedroom.png");
+            
+            //texture_asset *Texture = (texture_asset *)Asset->Memory;
+            directx_texture_asset Background = {Texture->Memory, Texture->Width, Texture->Height, 4};
+            
+            //int x,y,n;
+            //unsigned char *data = stbi_load("bedroom.png", &x, &y, &n, 4);
+            //directx_texture_asset Background = {data, x, y, n};
+            
+            
+            LoadBuffers(&Background.Buffers, &Background);
             
             time_info TimeInfo = {};
             while(RunLoop(&TimeInfo, Running, 60))
