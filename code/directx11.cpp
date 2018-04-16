@@ -6,6 +6,47 @@
 #include <d3dcompiler.h>
 
 
+struct dir_light
+{
+    v4 Direction;
+    v4 Diffuse;
+    v4 Ambient;
+};
+
+struct point_light 
+{    
+    v3 Position;
+    
+    float Constant;
+    float Linear;
+    float Quadratic;  
+    
+    v4 Ambient;
+    v4 Diffuse;
+};
+
+struct cbuffer
+{
+    m4 Model;
+    m4 Final;
+    dir_light DirLight;
+};
+
+struct directx_buffer
+{
+    ID3D11Buffer *VBuffer;
+    ID3D11Buffer *IBuffer;
+    ID3D11ShaderResourceView *Texture;   
+};
+
+struct directx_texture_asset
+{
+    unsigned char* Data;
+    int X, Y, N;
+    directx_buffer Buffers;
+};
+
+
 global_variable IDXGISwapChain *Swapchain;             // the pointer to the swap chain interface
 global_variable ID3D11Device *Dev;                     // the pointer to our Direct3D device interface
 global_variable ID3D11DeviceContext *Devcon;           // the pointer to our Direct3D device context
@@ -95,32 +136,6 @@ void InitializeD3D(IDXGISwapChain **Swapchain,             // the pointer to the
     Devcon[0]->RSSetViewports(1, &Viewport);
     
 }
-
-struct dir_light
-{
-    v4 Direction;
-    v4 Diffuse;
-    v4 Ambient;
-};
-
-struct point_light 
-{    
-    v3 Position;
-    
-    float Constant;
-    float Linear;
-    float Quadratic;  
-    
-    v4 Ambient;
-    v4 Diffuse;
-};
-
-struct cbuffer
-{
-    m4 Model;
-    m4 Final;
-    dir_light DirLight;
-};
 
 void InitPipeline(ID3D11Device *Dev, ID3D11DeviceContext *Devcon,
                   ID3D11VertexShader **VS,
@@ -228,20 +243,6 @@ struct dir_light
     Devcon->VSSetConstantBuffers(0, 1, CBuffer);
 }
 
-struct directx_buffer
-{
-    ID3D11Buffer *VBuffer;
-    ID3D11Buffer *IBuffer;
-    ID3D11ShaderResourceView *Texture;   
-};
-
-struct directx_texture_asset
-{
-    unsigned char* Data;
-    int X, Y, N;
-    directx_buffer Buffers;
-};
-
 // initializes the states
 void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,   
                 ID3D11RasterizerState **RSWireframe, ID3D11BlendState **BS,ID3D11SamplerState **pSS)
@@ -299,7 +300,7 @@ void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,
 }
 
 
-void LoadBuffers(directx_buffer *Buffers, directx_texture_asset *Background)
+void LoadBuffers(directx_buffer *Buffers, texture_asset *Background)
 {
     vertex Vertices[] =
     {
@@ -343,8 +344,8 @@ void LoadBuffers(directx_buffer *Buffers, directx_texture_asset *Background)
     Devcon->Unmap(Buffers->IBuffer, 0);
     
     D3D11_TEXTURE2D_DESC desc = {};
-    desc.Width = Background->X;
-    desc.Height = Background->Y;
+    desc.Width = Background->Width;
+    desc.Height = Background->Height;
     desc.MipLevels = desc.ArraySize = 1;
     desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.SampleDesc.Count = 1;
@@ -355,9 +356,9 @@ void LoadBuffers(directx_buffer *Buffers, directx_texture_asset *Background)
     
     
     D3D11_SUBRESOURCE_DATA  SubData = {}; 
-    SubData.pSysMem = Background->Data; 
-    SubData.SysMemPitch = Background->X * 4;
-    SubData.SysMemSlicePitch = 4 * Background->X * Background->Y; 
+    SubData.pSysMem = Background->Memory; 
+    SubData.SysMemPitch = Background->Width * 4;
+    SubData.SysMemSlicePitch = 4 * Background->Width * Background->Height; 
     
     
     ID3D11Texture2D *pTexture = NULL;
@@ -366,7 +367,7 @@ void LoadBuffers(directx_buffer *Buffers, directx_texture_asset *Background)
                                           &pTexture );
     if(Result != S_OK)
         InvalidCodePath;
-    Result = Dev->CreateShaderResourceView(pTexture, 0, &Background->Buffers.Texture);
+    Result = Dev->CreateShaderResourceView(pTexture, 0, &Buffers->Texture);
     if(Result != S_OK)
         InvalidCodePath;
     

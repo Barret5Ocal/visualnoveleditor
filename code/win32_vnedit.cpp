@@ -132,19 +132,42 @@ WinMain(HINSTANCE Instance,
             Stadium.Table = hash_table_new(string_hash, string_equal);
             hash_table_register_free_functions(Stadium.Table, NULL, free);
             
-            LoadAsset(&Stadium, TEXTURE, "bedroom.png");
             
-            texture_asset *Texture = GetTexture(&Stadium, "bedroom.png");
+            scene BedroomScene = {};
+            BedroomScene.NameCount = 1;
+            BedroomScene.AssetNames = "bedroom.png";
+            BedroomScene.RenderBuffers = PushArena(&MainArena, Megabyte(64));
+            
+            //directx_texture_asset Background;
+            directx_buffer *Buffers; 
+            
+            char *Name = BedroomScene.AssetNames;
+            for(uint32 Index = 0; 
+                Index < BedroomScene.NameCount;
+                Index++)
+            {
+                LoadAsset(&Stadium, TEXTURE, Name);
+                
+                texture_asset *Texture = GetTexture(&Stadium, Name);
+                
+                Buffers = (directx_buffer *)PushStruct(&BedroomScene.RenderBuffers, directx_buffer);
+                LoadBuffers(Buffers, Texture);
+                
+                while(*Name)
+                    Name++;
+                
+                Name++;
+            }
+            
+            
             
             //texture_asset *Texture = (texture_asset *)Asset->Memory;
-            directx_texture_asset Background = {Texture->Memory, Texture->Width, Texture->Height, 4};
             
             //int x,y,n;
             //unsigned char *data = stbi_load("bedroom.png", &x, &y, &n, 4);
             //directx_texture_asset Background = {data, x, y, n};
             
             
-            LoadBuffers(&Background.Buffers, &Background);
             
             time_info TimeInfo = {};
             while(RunLoop(&TimeInfo, Running, 60))
@@ -165,7 +188,7 @@ WinMain(HINSTANCE Instance,
                 
                 ClearScreen(Devcon, Backbuffer, ZBuffer); 
                 
-                DrawBackGround(&Background.Buffers);
+                DrawBackGround(Buffers);
                 
                 RenderToScreen();
             }
