@@ -60,6 +60,10 @@ typedef double real64;
 
 #include "directx11.cpp"
 
+#include "renderbuffer.cpp"
+
+#include "vnedit.cpp"
+
 LRESULT CALLBACK
 MainWindowProc(HWND Window,
                UINT Message,
@@ -120,8 +124,16 @@ WinMain(HINSTANCE Instance,
             
             FullSetup(Window);
             
+            
+            engine_state *EngineState;
+            
             memory_arena MainArena = {};
             InitMemoryArena(&MainArena, Gigabyte(1));
+            
+            EngineState = (engine_state *)PushStruct(&MainArena, engine_state);
+            
+            render_buffer RenderBuffer = {0};
+            InitializeRenderBuffer(&RenderBuffer, &MainArena);
             
             asset_stadium Stadium = {};
             Stadium.Assets = PushArena(&MainArena, Megabyte(265));
@@ -133,7 +145,7 @@ WinMain(HINSTANCE Instance,
             hash_table_register_free_functions(Stadium.Table, NULL, free);
             
             
-            scene BedroomScene = {};
+            scene_assets BedroomScene = {};
             BedroomScene.NameCount = 1;
             BedroomScene.AssetNames = "bedroom.png";
             BedroomScene.RenderBuffers = PushArena(&MainArena, Megabyte(64));
@@ -159,15 +171,11 @@ WinMain(HINSTANCE Instance,
                 Name++;
             }
             
+            Devcon->RSSetState(RSDefault);
+            //Devcon->RSSetState(RSWireframe);
             
-            
-            //texture_asset *Texture = (texture_asset *)Asset->Memory;
-            
-            //int x,y,n;
-            //unsigned char *data = stbi_load("bedroom.png", &x, &y, &n, 4);
-            //directx_texture_asset Background = {data, x, y, n};
-            
-            
+            Devcon->OMSetBlendState(BS, 0, 0xffffffff);
+            Devcon->PSSetSamplers(0, 1, &SamplerState);
             
             time_info TimeInfo = {};
             while(RunLoop(&TimeInfo, Running, 60))
@@ -179,17 +187,10 @@ WinMain(HINSTANCE Instance,
                     DispatchMessage(&Message);
                 }
                 
-                Devcon->RSSetState(RSDefault);
-                //Devcon->RSSetState(RSWireframe);
-                
-                Devcon->OMSetBlendState(BS, 0, 0xffffffff);
-                Devcon->PSSetSamplers(0, 1, &SamplerState);
+                RunEngine(EngineState, &RenderBuffer);
                 
                 
-                ClearScreen(Devcon, Backbuffer, ZBuffer); 
-                
-                DrawBackGround(Buffers);
-                
+                RunRenderBuffer(&RenderBuffer);
                 RenderToScreen();
             }
             

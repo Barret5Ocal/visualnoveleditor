@@ -440,10 +440,10 @@ void FullSetup(HWND Window)
 #endif
 }
 
-void ClearScreen(ID3D11DeviceContext *Devcon, ID3D11RenderTargetView *Backbuffer,    ID3D11DepthStencilView *ZBuffer)
+void ClearScreen(v4 Color)
 {
-    float Color[] = {0.0f, 0.2f, 0.4f, 1.0f};
-    Devcon->ClearRenderTargetView(Backbuffer, Color);
+    //float Color[] = {0.0f, 0.2f, 0.4f, 1.0f};
+    Devcon->ClearRenderTargetView(Backbuffer, Color.e);
     
     // clear the depth buffer
     Devcon->ClearDepthStencilView(ZBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);

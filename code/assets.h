@@ -40,7 +40,7 @@ struct asset
 };
 
 
-struct scene
+struct scene_assets
 {
     int NameCount;
     char *AssetNames;
