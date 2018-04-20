@@ -171,6 +171,8 @@ WinMain(HINSTANCE Instance,
                 Name++;
             }
             
+            EngineState->CurrentScene.Assets = BedroomScene;
+            
             Devcon->RSSetState(RSDefault);
             //Devcon->RSSetState(RSWireframe);
             
