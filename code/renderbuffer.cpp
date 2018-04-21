@@ -23,6 +23,18 @@ struct render_clear
     v4 Color; 
 };
 
+struct render_background 
+{
+    directx_buffer *Buffers;
+};
+
+struct render_sprite
+{
+    directx_buffer *Buffers; 
+    v2 Position; 
+    real32 Scale;
+};
+
 void PushClear(render_buffer *Buffer, v4 Color)
 {
     render_header *Header = (render_header *) PushStruct(&Buffer->Memory, render_header);
@@ -33,11 +45,6 @@ void PushClear(render_buffer *Buffer, v4 Color)
     Clear->Color = Color; 
 }
 
-struct render_background 
-{
-    directx_buffer *Buffers;
-};
-
 void PushBackground(render_buffer *Buffer, directx_buffer *Buffers)
 {
     render_header *Header = (render_header *) PushStruct(&Buffer->Memory, render_header);
@@ -47,6 +54,20 @@ void PushBackground(render_buffer *Buffer, directx_buffer *Buffers)
     render_background *Background = (render_background *)PushStruct(&Buffer->Memory, render_background);
     
     Background->Buffers = Buffers; 
+}
+
+
+void PushSprite(render_buffer *Buffer, directx_buffer *Buffers, v2 Position, real32 Scale)
+{
+    render_header *Header = (render_header *) PushStruct(&Buffer->Memory, render_header);
+    Header->Type = SPRITE; 
+    
+    Buffer->Count++;
+    render_sprite *Sprite = (render_sprite *)PushStruct(&Buffer->Memory, render_sprite);
+    
+    Sprite->Buffers = Buffers; 
+    Sprite->Position = Position; 
+    Sprite->Scale = Scale;
 }
 
 void InitializeRenderBuffer(render_buffer *Buffer, memory_arena *Main)
@@ -88,6 +109,17 @@ void RunRenderBuffer(render_buffer *Buffer)
                 DrawBackGround(Background->Buffers);
                 
                 Memory += sizeof(render_background);
+            }break;
+            case SPRITE:
+            {
+                Memory+= sizeof(render_header);
+                render_sprite *Sprite = (render_sprite *)Memory;
+                
+                
+                DrawSprite(Sprite->Buffers, Sprite->Position, Sprite->Scale);//, Sprite->Scale);
+                
+                Memory += sizeof(render_sprite);
+                
             }break;
         }
     }

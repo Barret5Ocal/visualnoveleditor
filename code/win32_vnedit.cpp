@@ -146,8 +146,8 @@ WinMain(HINSTANCE Instance,
             
             
             scene_assets BedroomScene = {};
-            BedroomScene.NameCount = 1;
-            BedroomScene.AssetNames = "bedroom.png";
+            BedroomScene.NameCount = 2;
+            BedroomScene.AssetNames = "school2.jpg\0PAliceDefault.png";
             BedroomScene.RenderBuffers = PushArena(&MainArena, Megabyte(64));
             
             //directx_texture_asset Background;

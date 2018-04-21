@@ -302,6 +302,9 @@ void InitStates(ID3D11Device *Dev, ID3D11RasterizerState **RSDefault,
 
 void LoadBuffers(directx_buffer *Buffers, texture_asset *Background)
 {
+    v2 Normal = {(real32)Background->Width, (real32)Background->Height};
+    gb_vec2_norm(&Normal, Normal);
+#if 0
     vertex Vertices[] =
     {
         {{-1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
@@ -309,7 +312,15 @@ void LoadBuffers(directx_buffer *Buffers, texture_asset *Background)
         {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
         {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
     };
-    
+#else
+    vertex Vertices[] =
+    {
+        {{-Normal.x, Normal.y, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+        {{Normal.x, -Normal.y, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-Normal.x, -Normal.y, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+        {{Normal.x, Normal.y, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+    };
+#endif
     D3D11_BUFFER_DESC BD = {};
     BD.Usage = D3D11_USAGE_DYNAMIC;
     BD.ByteWidth = sizeof(vertex) * ArrayCount(Vertices);
@@ -383,8 +394,9 @@ void DrawBackGround(directx_buffer *Buffers)
     ConstantB.DirLight.Ambient = {0.2f, 0.2f, 0.2f, 1.0f};
     
     //MatModel = {};
-    float Scalar = 5.0f; 
-    gb_mat4_scale(&MatModel, {(16/2)+1, (9/2)+1, 1.0f});
+    float Scalar = 10.2f; 
+    //gb_mat4_scale(&MatModel, {(16/2)+1, (9/2)+1, 1.0f});
+    gb_mat4_scale(&MatModel, {Scalar, Scalar, Scalar});
     
     
     ConstantB.Model= MatModel; 
@@ -405,7 +417,42 @@ void DrawBackGround(directx_buffer *Buffers)
     Devcon->PSSetShaderResources(0, 1, &Buffers->Texture);
     
     Devcon->DrawIndexed(6, 0, 0);
+}
+
+void DrawSprite(directx_buffer *Buffers, v2 Position, real32 Scale)
+{
+    cbuffer ConstantB = {};
     
+    ConstantB.DirLight.Direction = {1.0f, 1.0f, 1.0f, 0.0f};
+    ConstantB.DirLight.Diffuse = {1.0f, 1.0f, 1.0f, 1.0f}; 
+    ConstantB.DirLight.Ambient = {0.2f, 0.2f, 0.2f, 1.0f};
+    
+    gb_mat4_identity(&MatModel);
+    gb_mat4_translate(&MatModel, {Position.x, Position.y, 0.0f});
+    
+    m4 MatScale;
+    real32 Scalar = Scale;
+    gb_mat4_scale(&MatScale, {Scalar, Scalar, Scalar});
+    
+    MatModel *= MatScale;
+    ConstantB.Model = MatScale; 
+    
+    MatFinal = MatProjection * MatView * MatModel;
+    
+    ConstantB.Final = MatFinal;
+    
+    Devcon->UpdateSubresource(CBuffer, 0, 0, &ConstantB, 0, 0);
+    
+    UINT Stride = sizeof(vertex);
+    UINT Offset = 0;
+    Devcon->IASetVertexBuffers(0, 1, &Buffers->VBuffer, &Stride, &Offset);
+    Devcon->IASetIndexBuffer(Buffers->IBuffer, DXGI_FORMAT_R32_UINT, 0);
+    
+    Devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    
+    Devcon->PSSetShaderResources(0, 1, &Buffers->Texture);
+    
+    Devcon->DrawIndexed(6, 0, 0);
     
 }
 
