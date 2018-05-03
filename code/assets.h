@@ -1,7 +1,8 @@
 #include "include\compare-string.c"
 #include "include\hash-string.c"
 #include "include\hash-table.c"
-
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "include\stb_truetype.h"
 struct texture_asset
 {
     unsigned char *Memory;
@@ -60,12 +61,59 @@ struct asset_stadium
     memory_arena AssetStrings; 
 };
 
+void LoadFontBitmap(texture_asset *Texture, memory_arena *Arena, char *Filename)
+{
+    HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    
+    LARGE_INTEGER FileSize;
+    GetFileSizeEx(FileHandle, &FileSize);
+    
+    unsigned int FileSize32 = (unsigned int)FileSize.QuadPart;
+    
+    unsigned char *Memory = (unsigned char *)VirtualAlloc(0, FileSize32, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    
+    DWORD BytesRead;
+    ReadFile(FileHandle, Memory, FileSize32, &BytesRead, 0);
+    CloseHandle(FileHandle);
+    
+    stbtt_fontinfo Font;
+    stbtt_InitFont(&Font, Memory, stbtt_GetFontOffsetForIndex(Memory,0));
+    int Width, Height, XOffset, YOffset;
+    unsigned char *Bitmap = stbtt_GetCodepointBitmap(&Font, 0, stbtt_ScaleForPixelHeight(&Font, 64.0f), 'N', &Width, &Height, &XOffset, &YOffset);
+    VirtualFree(Memory, FileSize32, MEM_RELEASE);
+    
+    Texture->Memory= (unsigned char *)PushArray(Arena, Width  * Height, unsigned char);
+    Texture->Width = Width; 
+    Texture->Height = Height; 
+    
+    uint8 *Source = Bitmap;
+    uint8 *DestRow = (uint8 *)Texture->Memory; 
+    for(uint32 Y = 0;
+        Y < Height;
+        ++Y)
+    {
+        int32 *Dest = (int32 *)DestRow; 
+        for(int32 X = 0;
+            X < Width;
+            ++X)
+        {
+            uint8 Alpha = *Source++;
+            *Dest++ = ((Alpha << 24) |
+                       (Alpha << 16) |
+                       (Alpha << 8) |
+                       (Alpha << 0));
+        }
+        DestRow += Width * 4; 
+    }
+    stbtt_FreeBitmap(Bitmap, 0);
+}
+
 void LoadTexture(texture_asset *Texture, memory_arena *Arena, char *Filename)
 {
     int x,y,n;
     unsigned char *data = stbi_load(Filename, &x, &y, &n, 4);
     
-    unsigned char *Data = (unsigned char *)PushArray(Arena, x*y * 4, unsigned int);
+    unsigned char *Data = (unsigned char *)PushArray(Arena, x*y, unsigned int);
     
     Texture->Memory = Data; 
     Texture->Width = x;

@@ -17,8 +17,6 @@ typedef gbQuat quaternion;
 #define STB_IMAGE_IMPLEMENTATION
 #include "include\stb_image.h"
 
-//#define STB_SPRINTF_IMPLEMENTATION
-//#include "include\stb_sprintf.h"
 //#define STB_IMAGE_WRITE_IMPLEMENTATION
 //#include "include\stb_image_write.h"
 
@@ -61,6 +59,10 @@ typedef double real64;
 #include "directx11.cpp"
 
 #include "renderbuffer.cpp"
+
+
+texture_asset FontTexture;
+directx_buffer FontBuffer;
 
 #include "vnedit.cpp"
 
@@ -170,6 +172,9 @@ WinMain(HINSTANCE Instance,
                 
                 Name++;
             }
+            
+            LoadFontBitmap(&FontTexture, &Stadium.Textures, "c:/windows/fonts/arialbd.ttf");
+            LoadBuffers(&FontBuffer, &FontTexture);
             
             EngineState->CurrentScene.Assets = BedroomScene;
             
